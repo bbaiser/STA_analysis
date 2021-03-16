@@ -30,10 +30,4 @@ sta_5 <- master_dat %>%
   arrange(.,X)
 
 
-13*12*4
-624+16
- str(sta_4) 
 
- sta_4 <- master_dat %>%
-   filter(sta %in% sta_red) %>%
-   which(year > 2005 & month >4) %>%
