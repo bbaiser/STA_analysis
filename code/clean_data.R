@@ -25,9 +25,10 @@ sta_5 <- master_dat %>%
   filter(sta %in% sta_red) %>% # remove sta 5,6 and 5/6
   filter(year==2006 & month >4)%>% #now only take month 5-12 for 2006 from the remaining stas
   bind_rows(sta_4)%>% #combine the 2006 data with the 2007-2020 data (sta4) from above
-  arrange(.,X) #reorder
+  arrange(.,X)%>% #reorder
+  mutate(por= paste(year, month))#made a period of record column by combining year and month
 
-head(sta_5)
+
 
 #save reduced data frame out to data folder
 write.csv(sta_5, "data/4_sta.csv")
