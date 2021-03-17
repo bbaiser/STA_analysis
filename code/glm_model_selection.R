@@ -19,13 +19,11 @@ full_dat<-read.csv("data/4_sta.csv", row=1) #complete data frame compiled by Jin
 
 head(full_dat)
 
-#build model "piece" predicting total p outfloc conc. (out_tp_c )####
 
-# out_tp_c =total p outfloc conc.
-# tp_rr = total p retention rate
-# in_tp_c =total p inflow conc.
+#???????????????????remove na before everything?
 
-#lme model
+####build model "piece" predicting total p outflow conc. (out_tp_c )####
+
 
 #Histograms of variables in the model. looking for outliers
 hist(full_dat$out_tp_c,  breaks = 1000) # value of 0.643951 for data point 225 seems like a data error
@@ -44,7 +42,6 @@ p_out_dat<- full_dat %>%
 
 
 
-
 ##look at time series of p out
 
 #plot time series for each sta
@@ -60,18 +57,70 @@ tog_sta<-ggplot(p_out_dat, aes(x=por, y=out_tp_c, group=1)) +
 tog_sta
 
 
-tp_out <-lme(out_tp_c ~ tp_rr+ in_tp_c, random = ~ 1 | sta, data = p_out_dat, na.action = na.exclude)
+#lme model with sta as a random effect - need to log transform to even remotely meet assumptions
+tp_out <-lme(log(out_tp_c) ~ tp_rr+ in_tp_c, random = ~ 1 | sta, data = p_out_dat, na.action = na.exclude)
+
+
 
 summary(tp_out)
-
-plot(p_out_dat$year,p_out_dat$out_tp_c)
-r.squaredGLMM(tp_out)
+r.squaredGLMM(tp_out) 
 
 
-
-r.squaredGLMM(tp_out)
-
-??r2_nakagawa
+#explore model residuals
 E1<-resid(tp_out, type="pearson")
-plot(x=na.omit(tp_out),y=na.omit(E1) )
+max(E1)
+plot(x=na.omit(tp_out),y=na.omit(E1) ) #plot residuals
+qqnorm(E1)#qqplot
+qqline(E1)#qqline
 
+
+#lme model with ARMA
+#lme model with sta as a random effect - need to log transform to even remotely meet assumptions
+tp_out_ARMA <-lme(log(out_tp_c) ~ 
+                    tp_rr + 
+                    in_tp_c, 
+                  random = ~ 1 | sta,
+                  correlation = corARMA(form = ~ 1 | sta/por, q = 2,p=2),
+                  data = p_out_dat, na.action = na.exclude)
+
+
+
+summary(tp_out_ARMA)
+r.squaredGLMM(tp_out_ARMA) 
+
+
+#explore model residuals
+E1<-resid(tp_out_ARMA, type="pearson")
+
+plot(x=na.omit(tp_out_ARMA),y=na.omit(E1) ) #plot residuals
+qqnorm(E1)#qqplot
+qqline(E1)#qqline
+
+
+
+#(JH): test p, q for corARMA ####
+
+cor.results <- NULL
+for(i in 0:2) {
+  for(j in 0:2) {
+    if(i>0 | j>0) {
+      manure <- lme(log10.manureN ~ Agro + log10.WatershedHa,
+                    random = ~ 1 | SUBEST_ID,
+                    correlation = corARMA(form = ~ 1 | SUBEST_ID/Year, p = i, q = j),
+                    sav_wsmodelTFOH)
+      cor.results<-rbind(cor.results,c(i, j, AIC(manure)))
+    }
+  }
+}
+
+colnames(cor.results) <- c('i', 'j', 'AIC')
+cor.results
+
+#JH: test p, q 
+manure <- lme(log10.manureN ~ Agro + log10.WatershedHa,
+              random = ~ 1 | SUBEST_ID,
+              correlation = corARMA(form = ~ 1 | SUBEST_ID/Year, p = 3, q = 0),
+              sav_wsmodelTFOH)
+
+AIC(manure)
+#(JH): if p >3 or q >3, R reported fatal problem and stop the session     
