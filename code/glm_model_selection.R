@@ -39,22 +39,36 @@ boxplot(full_dat$tp_rr)
 
 
 #remove the outlier/error from the tp_out (point 225)
-sta_4 <- full_dat %>%
-  filter(sta %in% sta_red) %>%   # remove sta 5,6 and 5/6
-  filter(year > 2006)  #take years 2006 forward
+p_out_dat<- full_dat %>%
+  filter(out_tp_c < 0.2)  #take years 2006 forward
 
 
 
 
-tp_out <-lme(out_tp_c ~ tp_rr+ in_tp_c, random = ~ 1 | sta, data = full_dat, na.action = na.exclude)
+##look at time series of p out
 
-summary(full_dat$out_tp_c)
+#plot time series for each sta
+sep_sta<-ggplot(p_out_dat, aes(x=por, y=out_tp_c, group=sta)) +
+  geom_line(aes(color=sta))
 
-hist(full_dat$out_tp_c,  breaks = 1000)
+sep_sta
+
+# all data combined time series
+tog_sta<-ggplot(p_out_dat, aes(x=por, y=out_tp_c, group=1)) +
+  geom_line()
+
+tog_sta
+
+
+tp_out <-lme(out_tp_c ~ tp_rr+ in_tp_c, random = ~ 1 | sta, data = p_out_dat, na.action = na.exclude)
+
+summary(tp_out)
+
+plot(p_out_dat$year,p_out_dat$out_tp_c)
 r.squaredGLMM(tp_out)
 
 
-summary(tp_out)
+
 r.squaredGLMM(tp_out)
 
 ??r2_nakagawa
