@@ -60,18 +60,19 @@ tog_sta
 #lme model with sta as a random effect - need to log transform to even remotely meet assumptions
 tp_out <-lme(log(out_tp_c) ~ tp_rr+ in_tp_c, random = ~ 1 | sta, data = p_out_dat, na.action = na.exclude)
 
-
-
 summary(tp_out)
 r.squaredGLMM(tp_out) 
 
 
 #explore model residuals
 E1<-resid(tp_out, type="pearson")
-max(E1)
 plot(x=na.omit(tp_out),y=na.omit(E1) ) #plot residuals
 qqnorm(E1)#qqplot
 qqline(E1)#qqline
+
+#explore temporal autocorrelation
+acf(E1,na.action = na.exclude)
+pacf(E1,na.action = na.exclude)
 
 
 #lme model with ARMA
@@ -80,7 +81,7 @@ tp_out_ARMA <-lme(log(out_tp_c) ~
                     tp_rr + 
                     in_tp_c, 
                   random = ~ 1 | sta,
-                  correlation = corARMA(form = ~ 1 | sta/por, q = 2,p=2),
+                  correlation = corARMA(form = ~ 1 | sta, p = 1, ),
                   data = p_out_dat, na.action = na.exclude)
 
 
@@ -96,6 +97,11 @@ plot(x=na.omit(tp_out_ARMA),y=na.omit(E1) ) #plot residuals
 qqnorm(E1)#qqplot
 qqline(E1)#qqline
 
+#explore temporal autocorrelation
+
+acf(E1,na.action = na.exclude)
+pacf(E1,na.action = na.exclude)
+
 
 
 #(JH): test p, q for corARMA ####
@@ -104,11 +110,14 @@ cor.results <- NULL
 for(i in 0:2) {
   for(j in 0:2) {
     if(i>0 | j>0) {
-      manure <- lme(log10.manureN ~ Agro + log10.WatershedHa,
-                    random = ~ 1 | SUBEST_ID,
-                    correlation = corARMA(form = ~ 1 | SUBEST_ID/Year, p = i, q = j),
-                    sav_wsmodelTFOH)
-      cor.results<-rbind(cor.results,c(i, j, AIC(manure)))
+      tp_out_ARMA <-lme(log(out_tp_c) ~ 
+                          tp_rr + 
+                          in_tp_c, 
+                        random = ~ 1 | sta,
+                        correlation = corARMA(form = ~ 1 | sta/por, p = i, q = j),
+                        data = p_out_dat, 
+                        na.action = na.exclude)
+      cor.results<-rbind(cor.results,c(i, j, AIC(tp_out_ARMA)))
     }
   }
 }
