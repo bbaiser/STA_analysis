@@ -45,13 +45,13 @@ p_out_dat<- full_dat %>%
 ##look at time series of p out
 
 #plot time series for each sta
-sep_sta<-ggplot(p_out_dat, aes(x=por, y=out_tp_c, group=sta)) +
+sep_sta<-ggplot(p_out_dat, aes(x=por2, y=out_tp_c, group=sta)) +
   geom_line(aes(color=sta))
 
 sep_sta
 
 # all data combined time series
-tog_sta<-ggplot(p_out_dat, aes(x=por, y=out_tp_c, group=1)) +
+tog_sta<-ggplot(p_out_dat, aes(x=por2, y=out_tp_c, group=1)) +
   geom_line()
 
 tog_sta
@@ -64,6 +64,7 @@ summary(tp_out)
 r.squaredGLMM(tp_out) 
 
 
+
 #explore model residuals
 E1<-resid(tp_out, type="pearson")
 plot(x=na.omit(tp_out),y=na.omit(E1) ) #plot residuals
@@ -71,6 +72,7 @@ qqnorm(E1)#qqplot
 qqline(E1)#qqline
 
 #explore temporal autocorrelation
+Box.test(resid(tp_out), lag=20, type="Ljung-Box")#test for autocorr
 acf(E1,na.action = na.exclude)
 pacf(E1,na.action = na.exclude)
 
@@ -81,8 +83,9 @@ tp_out_ARMA <-lme(log(out_tp_c) ~
                     tp_rr + 
                     in_tp_c, 
                   random = ~ 1 | sta,
-                  correlation = corARMA(form = ~ 1 | sta, p = 1, ),
+                  correlation = corARMA(form = ~ 1 | sta/por2, p = 1 ),
                   data = p_out_dat, na.action = na.exclude)
+
 
 
 
@@ -114,7 +117,7 @@ for(i in 0:2) {
                           tp_rr + 
                           in_tp_c, 
                         random = ~ 1 | sta,
-                        correlation = corARMA(form = ~ 1 | sta/por, p = i, q = j),
+                        correlation = corARMA(form = ~ 1 | sta/por2, p = i, q = j),
                         data = p_out_dat, 
                         na.action = na.exclude)
       cor.results<-rbind(cor.results,c(i, j, AIC(tp_out_ARMA)))
