@@ -58,18 +58,17 @@ sep_sta_1E<-ggplot(subset(p_out_dat,sta %in% c("sta_1E")), aes(x=por2, y=out_tp_
   geom_line(aes(color=sta))
 
 sep_sta_1E
+acf(subset(p_out_dat,sta %in% c("sta_1E"))$out_tp_c)
+pacf(subset(p_out_dat,sta %in% c("sta_1E"))$out_tp_c)
 
 #1W
 sep_sta_1W<-ggplot(subset(p_out_dat,sta %in% c("sta_1W")), aes(x=por2, y=out_tp_c)) +
   geom_line(aes(color=sta))
 
 sep_sta_1W
+acf(subset(p_out_dat,sta %in% c("sta_1W"))$out_tp_c)
+pacf(subset(p_out_dat,sta %in% c("sta_1W"))$out_tp_c)
 
-#1W
-sep_sta_1W<-ggplot(subset(p_out_dat,sta %in% c("sta_1W")), aes(x=por2, y=out_tp_c)) +
-  geom_line(aes(color=sta))
-
-sep_sta_1W
 
 
 #2
@@ -78,6 +77,8 @@ sep_sta_2<-ggplot(subset(p_out_dat,sta %in% c("sta_2")), aes(x=por2, y=out_tp_c)
 
 
 sep_sta_2
+acf(subset(p_out_dat,sta %in% c("sta_2"))$out_tp_c)
+pacf(subset(p_out_dat,sta %in% c("sta_2"))$out_tp_c)
 
 #3/4
 
@@ -86,12 +87,16 @@ sep_sta_3_4<-ggplot(subset(p_out_dat,sta %in% c("sta_34")), aes(x=por2, y=out_tp
 
 
 sep_sta_3_4
+acf(subset(p_out_dat,sta %in% c("sta_34"))$out_tp_c)
+pacf(subset(p_out_dat,sta %in% c("sta_34"))$out_tp_c)
 
 # all data combined time series
 tog_sta<-ggplot(p_out_dat, aes(x=por2, y=out_tp_c, group=1)) +
   geom_line()
 
 tog_sta
+acf(p_out_dat$out_tp_c)
+pacf(p_out_dat$out_tp_c)
 
 
 #lme model with sta as a random effect - need to log transform to even remotely meet assumptions
@@ -104,14 +109,14 @@ r.squaredGLMM(tp_out)
 
 #explore model residuals
 E1<-resid(tp_out, type="pearson")
-plot(x=na.omit(tp_out),y=na.omit(E1) ) #plot residuals
+plot(x=tp_out,y=E1) #plot residuals
 qqnorm(E1)#qqplot
 qqline(E1)#qqline
 
 #explore temporal autocorrelation
 Box.test(resid(tp_out), lag=20, type="Ljung-Box")#test for autocorr
-acf(E1,na.action = na.exclude)
-pacf(E1,na.action = na.exclude)
+acf(E1)
+pacf(E1)
 
 
 
@@ -120,8 +125,8 @@ pacf(E1,na.action = na.exclude)
 #test p, q for corARMA ####
 
 cor.results <- NULL
-for(i in 0:2) {
-  for(j in 0:2) {
+for(i in 0:3) {
+  for(j in 0:3) {
     if(i>0 | j>0) {
       tp_out_ARMA <-lme(log(out_tp_c) ~ 
                           tp_rr + 
@@ -138,19 +143,33 @@ for(i in 0:2) {
 colnames(cor.results) <- c('i', 'j', 'AIC')
 cor.results %>% arrange(AIC)
 
+#  P Q   AIC
+#1  3 2 447.9030
+#2  1 2 451.6036
+#3  2 2 452.9342
+#4  3 0 452.9585
+#5  1 3 453.5464
+#6  3 1 453.6979
+#7  3 3 454.9930
+#8  2 3 455.0897
+#9  1 0 460.2263
+#10 2 1 461.0614
+#11 1 1 461.5960
+#12 2 0 461.8460
+#13 0 3 478.5811
+#14 0 2 508.1160
+#15 0 1 539.7510
+
 
 #lme model with ARMA
 #lme model with sta as a random effect - need to log transform to even remotely meet assumptions
-tp_out_ARMA <-lme(out_tp_c ~ 
+tp_out_ARMA <-lme(log(out_tp_c) ~ 
                     tp_rr + 
                     in_tp_c, 
                   random = ~ 1 | sta,
-                  correlation = corARMA(form = ~ 1 | sta, p = 1, q=2 ),
+                  correlation = corARMA(form = ~ por2 | sta, p = 3, q=2 ),
                   data = p_out_dat)
 
-zz<-diff(p_out_dat$out_tp_c,lag=4)
-Box.test(zz, lag=20, type="Ljung-Box")#test for autocorr
-acf(p_out_dat$out_tp_c)
 
 summary(tp_out_ARMA)
 r.squaredGLMM(tp_out_ARMA) 
