@@ -79,10 +79,17 @@ manure <- lme(log10.manureN ~ Agro + log10.WatershedHa,
               random = ~ 1 | SUBEST_ID,
               sav_wsmodelTFOH)
 
-
-auto.arima(manure$residuals)
 summary(manure)
 r.squaredGLMM(manure) 
+
+manure2 <- lme(log10.manureN ~ Agro + log10.WatershedHa,
+              random = ~ 1 | SUBEST_ID,
+              correlation = corARMA(form = ~ 1 | SUBEST_ID, p = 1, q = 1),
+              sav_wsmodelTFOH)
+
+
+summary(manure2)
+r.squaredGLMM(manure2) 
 
 
 #explore model residuals
