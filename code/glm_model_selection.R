@@ -161,13 +161,39 @@ cor.results %>% arrange(AIC)
 #15 0 1 539.7510
 
 
+#gls model with ARMA
+#gls model with sta as a random effect - need to log transform to even remotely meet assumptions
+tp_out_ARMA <-gls(log(out_tp_c) ~ 
+                    tp_rr + 
+                    in_tp_c+ 
+                    sta,
+                  correlation = corARMA(p = 2, q=2 ),
+                  data = p_out_dat)
+
+
+summary(tp_out_ARMA)
+r.squaredLR(tp_out_ARMA) 
+
+
+#explore model residuals
+E2<-resid(tp_out_ARMA, type="pearson")
+plot(x=na.omit(tp_out_ARMA),y=na.omit(E2) ) #plot residuals
+qqnorm(E2)#qqplot
+qqline(E2)#qqline
+
+#explore temporal autocorrelation
+
+acf(E2,na.action = na.exclude)
+pacf(E1,na.action = na.exclude)
+Box.test(resid(tp_out_ARMA), lag=20, type="Ljung-Box")#test for autocorr
+
 #lme model with ARMA
 #lme model with sta as a random effect - need to log transform to even remotely meet assumptions
 tp_out_ARMA <-lme(log(out_tp_c) ~ 
                     tp_rr + 
                     in_tp_c, 
                   random = ~ 1 | sta,
-                  correlation = corARMA(form = ~ por2 | sta, p = 3, q=2 ),
+                  correlation = corARMA(form = ~ 1 | sta, p = 3, q=2 ),
                   data = p_out_dat)
 
 
