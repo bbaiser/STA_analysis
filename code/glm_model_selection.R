@@ -41,34 +41,43 @@ boxplot(full_dat$tp_rr)
 
 #remove the outlier/error from the tp_out (point 225)
 p_out_dat<- full_dat %>%
-  filter(out_tp_c < 0.2)  #take years 2006 forward
+  filter(out_tp_c < 0.2)  
 
 
 
 ##look at time series of p out
 
-#plot time series for each sta
+#plot of all 4 time series together
 sep_sta<-ggplot(p_out_dat, aes(x=por2, y=out_tp_c, group=sta)) +
   geom_line(aes(color=sta))
 
-sep_sta
+#test for autocorrelation
+acf(p_out_dat$out_tp_c)
+pacf(p_out_dat$out_tp_c)
+Box.test(p_out_dat$out_tp_c, lag=20, type="Ljung-Box")
 
 #1E
 sep_sta_1E<-ggplot(subset(p_out_dat,sta %in% c("sta_1E")), aes(x=por2, y=out_tp_c)) +
   geom_line(aes(color=sta))
 
 sep_sta_1E
+
+#test for autocorrelation
 acf(subset(p_out_dat,sta %in% c("sta_1E"))$out_tp_c)
 pacf(subset(p_out_dat,sta %in% c("sta_1E"))$out_tp_c)
+Box.test(subset(p_out_dat,sta %in% c("sta_1E"))$out_tp_c, lag=20, type="Ljung-Box")
+
 
 #1W
 sep_sta_1W<-ggplot(subset(p_out_dat,sta %in% c("sta_1W")), aes(x=por2, y=out_tp_c)) +
   geom_line(aes(color=sta))
 
 sep_sta_1W
+
+#test for autocorrelation
 acf(subset(p_out_dat,sta %in% c("sta_1W"))$out_tp_c)
 pacf(subset(p_out_dat,sta %in% c("sta_1W"))$out_tp_c)
-
+Box.test(subset(p_out_dat,sta %in% c("sta_1W"))$out_tp_c, lag=20, type="Ljung-Box")
 
 
 #2
@@ -77,8 +86,11 @@ sep_sta_2<-ggplot(subset(p_out_dat,sta %in% c("sta_2")), aes(x=por2, y=out_tp_c)
 
 
 sep_sta_2
+
+#test for autocorrelation
 acf(subset(p_out_dat,sta %in% c("sta_2"))$out_tp_c)
 pacf(subset(p_out_dat,sta %in% c("sta_2"))$out_tp_c)
+Box.test(subset(p_out_dat,sta %in% c("sta_2"))$out_tp_c, lag=20, type="Ljung-Box")
 
 #3/4
 
@@ -87,24 +99,29 @@ sep_sta_3_4<-ggplot(subset(p_out_dat,sta %in% c("sta_34")), aes(x=por2, y=out_tp
 
 
 sep_sta_3_4
+
+#test for autocorrelation
 acf(subset(p_out_dat,sta %in% c("sta_34"))$out_tp_c)
 pacf(subset(p_out_dat,sta %in% c("sta_34"))$out_tp_c)
+Box.test(subset(p_out_dat,sta %in% c("sta_34"))$out_tp_c, lag=20, type="Ljung-Box")
 
-# all data combined time series
+# all data combined into one time series
 tog_sta<-ggplot(p_out_dat, aes(x=por2, y=out_tp_c, group=1)) +
   geom_line()
 
-tog_sta
+#test for autocorrelation
 acf(p_out_dat$out_tp_c)
 pacf(p_out_dat$out_tp_c)
-
+Box.test(p_out_dat$out_tp_c, lag=20, type="Ljung-Box")
 
 #lme model with sta as a random effect - need to log transform to even remotely meet assumptions
 tp_out <-lme(log(out_tp_c) ~ tp_rr+ in_tp_c, random = ~ 1 | sta, data = p_out_dat)
 
+
+#test for autocorrelation
 summary(tp_out)
 r.squaredGLMM(tp_out) 
-
+Box.test(subset(p_out_dat$, lag=20, type="Ljung-Box")
 
 
 #explore model residuals
