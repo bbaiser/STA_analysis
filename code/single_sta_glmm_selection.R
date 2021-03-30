@@ -64,22 +64,26 @@ sta2<-p_out_dat%>%
 
 
 #lme model without Correlation
-tp_out <-gls(out_tp_c ~ tp_rr+ in_tp_c, data = sta2)
-sta2$out_tp_c
+tp_out <-lm(log(out_tp_c) ~  in_tp_c+tp_rr, data = sta2)
+#simple regression
+tp_out <-lm(log(out_tp_c) ~  tp_rr, data = sta2)
+tp_out <-lm(log(out_tp_c) ~  in_tp_c, data = sta2)
 
-#test for autocorrelation
+#check multicollinearity
+car::vif(lm(log(out_tp_c) ~  in_tp_c+tp_rr, data = sta2))
+
+#check summary 
 summary(tp_out)
 r.squaredLR(tp_out) 
 
-         
-         
-#explore model residuals
+#check residuals
+plot(tp_out)
+
+# extract model residuals
 E1<-resid(tp_out, type="pearson")
-plot(x=tp_out,y=E1) #plot residuals
-qqnorm(E1)#qqplot
-qqline(E1)#qqline
+
          
 #explore temporal autocorrelation
 Box.test(resid(tp_out), lag=20, type="Ljung-Box")#test for autocorr
 acf(E1)
-         pacf(E1)
+pacf(E1)
