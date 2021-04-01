@@ -70,6 +70,12 @@ acf(sta2$out_tp_c_int)
 pacf(sta2$out_tp_c_int)
 Box.test(sta2$out_tp_c_int, lag=20, type="Ljung-Box")
 
+(fit <- Arima(sta2$out_tp_c_int, order=c(0,0,1)))
+acf(residuals(fit))
+
+
+auto.arima(sta2$out_tp_c_int)
+
 
 #make actual timeseries object
 
@@ -86,6 +92,12 @@ sta2_seas_adj <- sta2_ts-sta_comps$seasonal
 plot(sta2_seas_adj)
 acf(sta2_seas_adj)
 diff<-diff(sta2_seas_adj,difference=1)
+
 plot.ts(diff)
-pacf(sta2_seas_adj,lag.max=20)
-acf(sta2_seas_adj,lag.max=20)
+pacf(diff,lag.max=20)
+acf(diff,lag.max=20)
+
+auto.arima(sta2_ts)
+
+(fit <- Arima(sta2$out_tp_c, order=c(0,0,2)))
+acf(residuals(fit))
