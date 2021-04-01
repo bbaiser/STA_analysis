@@ -315,7 +315,18 @@ write.csv(sav_wsmodelMH,"data/sav_wsmodelMH.csv")
                 random = ~ 1 | SUBEST_ID,
                 correlation = corARMA(form = ~ 1 | SUBEST_ID/Year, p = 3, q = 0),
                 sav_wsmodelTFOH)
-  
+ plot(sav_wsmodelTFOH$Agro,sav_wsmodelTFOH$log10.WatershedHa) 
+ 
+ xx<-lm(log10.manureN ~ Agro + log10.WatershedHa, data=sav_wsmodelTFOH)
+summary(xx) 
+
+
+yy<-lm(log10.manureN ~  log10.WatershedHa, data=sav_wsmodelTFOH)
+summary(yy)  
+
+
+nn<-lm(log10.manureN ~  Agro, data=sav_wsmodelTFOH)
+summary(nn) 
   AIC(manure)
 #(JH): if p >3 or q >3, R reported fatal problem and stop the session                                       
   
