@@ -1,7 +1,8 @@
 ####Time series analysis for sta tp out put only (2006-2020)
 
 #Packages
-
+install.packages("itsmr")
+library(itsmr)
 library(dplyr)
 library(tidyr)
 library(plyr)
@@ -12,6 +13,7 @@ library(lmtest)
 library(MuMIn) 
 library(lme4)
 library(zoo)
+library(forecast)
 
 #import data####
 
@@ -86,33 +88,138 @@ sep_sta_2
 
 
 
+#test for autocorrelation####
 
-
-
-#test for autocorrelation
+#tp_out
 acf(sta2_int$out_tp_c_int)
 pacf(sta2_int$out_tp_c_int)
-Box.test(sta2_int$out_tp_c_int, lag=20, type="Ljung-Box")
-
-
-
+Box.test(sta2_int$out_tp_c_int, lag=10, type="Ljung-Box")
 
 #auto arima
-auto.arima(sta2_int$out_tp_c_int, trace=T)
+auto.arima(sta2_int$out_tp_c_int, trace=T)# Best model: ARIMA(0,0,1) with non-zero mean 
 
-fit <- Arima(sta2_int$out_tp_c_int, order=c(0,0,1)))
+#does it fix autocorrelation issues? YES!
+fit <- Arima(sta2_int$out_tp_c_int, order=c(0,0,1))
 pacf(residuals(fit))
 acf(residuals(fit))
+
+Box.test(residuals(fit), lag=10, type="Ljung-Box")
 
 plot(residuals(fit))
 
 
+#tp_IN
+acf(sta2_int$in_tp_c_int)
+pacf(sta2_int$in_tp_c_int)
+Box.test(sta2_int$in_tp_c_int, lag=10, type="Ljung-Box")
+
+#auto arima
+auto.arima(sta2_int$in_tp_c_int, trace=T)# Best model: ARIMA(5,0,0) with non-zero mean 
+
+#does it fix autocorrelation issues? YES!
+fit <- Arima(sta2_int$in_tp_c_int, order=c(5,0,0))
+in_arima<-residuals(fit)
+pacf(residuals(fit))
+acf(residuals(fit))
+Box.test(residuals(fit), lag=10, type="Ljung-Box")
+
+
+plot(residuals(fit))
+
+
+
+#tp_RR
+acf(sta2_int$tp_rr_int)
+pacf(sta2_int$tp_rr_int)
+Box.test(sta2_int$tp_rr_int, lag=10, type="Ljung-Box")
+
+#auto arima
+auto.arima(log1p(sta2_int$tp_rr_int), trace=T)# Best model: ARIMA(0,0,1) with non-zero mean 
+
+#does it fix autocorrelation issues? YES!
+fit <- Arima(log1p(sta2_int$tp_rr_int), order=c(2,0,1))
+pacf(residuals(fit))
+acf(residuals(fit))
+
+####test of stationarity
+Box.test(residuals(fit), lag=10, type="Ljung-Box")#want high pvalue
+tseries::adf.test(residuals(fit))#want low opvalue
+tseries::kpss.test(residuals(fit), null="Trend")#want high pvalue
+plot(residuals(fit))
+
+
+# full model arima?
+
+#tp_RR
+tp_out <-gls(log(out_tp_c_int) ~  in_tp_c_int, data = sta2_int)
+
+tp_out <-gls(log(out_tp_c_int) ~  in_arima, data = sta2_int)
+in_arima
+
+summary(tp_out)
+
+plot(tp_out)#check residuals
+
+
+pacf(residuals(tp_out))
+acf(residuals(tp_out))
+Box.test(residuals(tp_out), lag=10, type="Ljung-Box")
+tseries::adf.test(residuals(tp_out)) #want low pvalue
+tseries::kpss.test(residuals(tp_out), null="Trend") #want high pvalue
+
+
+
+
+#test p, q for corARMA ####
+gls(log(out_tp_c_int) ~ 
+      in_tp_c_int, correlation = corARMA(p = 1, q = 1),data = sta2_int, 
+    na.action = na.exclude)
+
+    
+    cor.results <- NULL
+for(i in 0:5) {
+  for(j in 0:5) {
+    if(i>0 | j>0) {
+      tp_out_ARMA <-gls(log(out_tp_c_int) ~ 
+                        in_tp_c_int, 
+                        correlation = corARMA(p = i, q = j,form =~ 1),
+                        data = sta2_int, 
+                        na.action = na.exclude)
+      cor.results<-as.data.frame(rbind(cor.results,c(i, j, AIC(tp_out_ARMA))))
+    }
+  }
+}
+
+colnames(cor.results) <- c('i', 'j', 'AIC')#Regression with ARIMA(1,0,0) same result as auto arima
+cor.results %>% arrange(AIC)
+
+
+#auto arima
+auto.arima(log(sta2_int$out_tp_c_int), xreg=in_arima, trace=T)# Regression with ARIMA(1,0,0) 
+
+#best model according to auto arima and own test is p=1 q=0 d=0
+
+tp_out_ARMA <-gls(log(out_tp_c_int) ~ 
+                    in_arima, 
+                  correlation = corARMA(p = 1, q = 0,form =~ 1),
+                  data = sta2_int, 
+                  na.action = na.exclude)
+
+summary(tp_out_ARMA)
+
+#does it fix autocorrelation issues? YES!
+pacf(residuals(tp_out_ARMA))
+acf(residuals(tp_out_ARMA))
+
+
 tp_out <-lm(log(out_tp_c_int) ~  in_tp_c, data = sta2_int)
-     
-     
-sta2_int$in_tp_c   
-     
-#make actual timeseries object####
+test(residuals(fit))   
+
+
+pacf(residuals(fit))
+acf(residuals(fit))
+
+#make actual timeseries object and decompose####
 
 sta2_ts<-ts(residuals(fit), frequency = 12)#note that May is the first month
 plot.ts(sta2_ts)
