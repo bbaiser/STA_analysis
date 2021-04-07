@@ -198,10 +198,39 @@ cor.results %>% arrange(AIC)
 
 
 #auto arima
-auto.arima(log(sta2_int$out_tp_c_int), xreg=sta2_int$in_tp_c_int, trace=T)
+auto.arima(log(ts(sta2_int$out_tp_c_int, frequency = 12)), xreg=sta2_int$in_tp_c_int, trace=T)
 
+(fit <- Arima(log(ts(sta2_int$out_tp_c_int, frequency = 12)), xreg=sta2_int$in_tp_c_int, order=c(1,0,0), seasonal=c(1,0,0)))
+#test coefficients
+coeftest(fit)
+
+pacf(residuals(fit))
+
+
+
+
+
+(fit <- Arima(log(sta2_int$out_tp_c_int), xreg=sta2_int$in_tp_c_int, order=c(1,0,0)))
+#test coefficients
+coeftest(fit)
+
+pacf(residuals(fit))
+
+
+tp_out_ARMA <-gls(log(out_tp_c_int) ~ 
+                    in_tp_c_int,
+                  data=sta2_int,
+                  correlation = corARMA(p = 1, q = 0))
+
+
+
+pacf(residuals(tp_out_ARMA, type = "normalized"))
+
+pacf(residuals(tp_out_ARMA))
+
+plot(residuals(tp_out_ARMA, type = "normalized"),residuals(fit))
 #best model 
-
+residuals(tp_out_ARMA, type = "normalized")
 tp_out_ARMA <-gls(log(out_tp_c_int) ~ 
                     in_tp_c_int, 
                   correlation = corARMA(p = 1, q = 0),
@@ -219,25 +248,58 @@ acf(residuals(tp_out_ARMA))
 
 #make actual timeseries object and decompose####
 
-sta2_ts<-ts(residuals(fit), frequency = 12)#note that May is the first month
+#time series for tp out
+sta2_ts<-ts(sta2_int$out_tp_c_int, frequency = 12)#note that May is the first month
 plot.ts(sta2_ts)
 sta_comps<-decompose(sta2_ts)#decompose into trend, season and noise
-
 plot(sta_comps)#plot decomposition components
 
+#check for correlations
+pacf(sta2_ts)
+acf(sta2_ts)
 
+
+#check best fit arima model
+auto.arima(sta2_ts)#ARIMA(0,0,1)(1,0,0)[12] with non-zero mean 
+
+#fit model
+
+(fit <- Arima(sta2_ts, order=c(0,0,1), seasonal=c(1,0,0)))
+
+pacf(residuals(fit))
+acf(residuals(fit))
+
+#remove seasonality
 
 sta2_seas_adj <- sta2_ts-sta_comps$seasonal
 
-plot(sta2_seas_adj)
-acf(sta2_seas_adj)
-diff<-diff(sta2_seas_adj,difference=1)
+#decompose and plot to make sure season is gone, it is, I think
+sta_comps<-decompose(sta2_seas_adj)#decompose into trend, season and noise
+plot(sta_comps)
 
+plot(sta2_seas_adj)
+pacf(as.numeric(sta2_seas_adj))
+acf(as.numeric(sta2_seas_adj))
+
+#check best fit auto.arima
+auto.arima(sta2_seas_adj)#ARIMA(0,0,1)(0,0,2)[12] with non-zero mean 
+
+(fit <- Arima(sta2_seas_adj, order=c(0,0,1), seasonal=c(0,0,2)))
+
+pacf(as.numeric(residuals(fit)))
+acf(as.numeric(residuals(fit)))
+
+diff<-diff(sta2_seas_adj,difference=1)
 plot.ts(diff)
 pacf(diff,lag.max=20)
 acf(diff,lag.max=20)
 
 auto.arima(sta2_ts)
+
+
+#seasonal = c(0, 0, 0)
+
+
 
 (fit <- Arima(sta2$out_tp_c, order=c(0,0,2)))
 acf(residuals(fit))
