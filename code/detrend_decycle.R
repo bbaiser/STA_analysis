@@ -150,38 +150,41 @@ plot(residuals(fit))
 
 # full model arima?
 
+Ccf(sta2_int$in_tp_c_int,sta2_int$out_tp_c_int)#use lags
+
 #tp_RR
+
+diff_out<-diff(sta2_int$out_tp_c_int)#difference response varible
+tp_in<-sta2_int$in_tp_c_int[-1]#remove first observation to match diff y var above
+
+#regular model model
 tp_out <-gls(log(out_tp_c_int) ~  in_tp_c_int, data = sta2_int)
-
-tp_out <-gls(log(out_tp_c_int) ~  in_arima, data = sta2_int)
-in_arima
-
 summary(tp_out)
+plot(tp_out)
 
-plot(tp_out)#check residuals
+#differenced model
+tp_out_diff <-gls(diff_out ~  tp_in, data = sta2_int)
+
+summary(tp_out_diff)
+plot(tp_out_diff)#check residuals
 
 
-pacf(residuals(tp_out))
-acf(residuals(tp_out))
+#test stationarity replace whatever model you are looking re: diff or not
+pacf(residuals(tp_out_diff))
+acf(residuals(tp_out_diff))
 Box.test(residuals(tp_out), lag=10, type="Ljung-Box")
-tseries::adf.test(residuals(tp_out)) #want low pvalue
+tseries::adf.test(residuals(tp_out_diff)) #want low pvalue
 tseries::kpss.test(residuals(tp_out), null="Trend") #want high pvalue
 
 
 
-
 #test p, q for corARMA ####
-gls(log(out_tp_c_int) ~ 
-      in_tp_c_int, correlation = corARMA(p = 1, q = 1),data = sta2_int, 
-    na.action = na.exclude)
-
-    
-    cor.results <- NULL
+cor.results <- NULL
 for(i in 0:5) {
   for(j in 0:5) {
     if(i>0 | j>0) {
-      tp_out_ARMA <-gls(log(out_tp_c_int) ~ 
-                        in_tp_c_int, 
+      tp_out_ARMA <-gls(diff_out  ~ 
+                          tp_in, 
                         correlation = corARMA(p = i, q = j,form =~ 1),
                         data = sta2_int, 
                         na.action = na.exclude)
@@ -195,13 +198,13 @@ cor.results %>% arrange(AIC)
 
 
 #auto arima
-auto.arima(log(sta2_int$out_tp_c_int), xreg=in_arima, trace=T)# Regression with ARIMA(1,0,0) 
+auto.arima(log(sta2_int$out_tp_c_int), xreg=sta2_int$in_tp_c_int, trace=T)
 
-#best model according to auto arima and own test is p=1 q=0 d=0
+#best model 
 
 tp_out_ARMA <-gls(log(out_tp_c_int) ~ 
-                    in_arima, 
-                  correlation = corARMA(p = 1, q = 0,form =~ 1),
+                    in_tp_c_int, 
+                  correlation = corARMA(p = 1, q = 0),
                   data = sta2_int, 
                   na.action = na.exclude)
 
@@ -212,12 +215,7 @@ pacf(residuals(tp_out_ARMA))
 acf(residuals(tp_out_ARMA))
 
 
-tp_out <-lm(log(out_tp_c_int) ~  in_tp_c, data = sta2_int)
-test(residuals(fit))   
 
-
-pacf(residuals(fit))
-acf(residuals(fit))
 
 #make actual timeseries object and decompose####
 
