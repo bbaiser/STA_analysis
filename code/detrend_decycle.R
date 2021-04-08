@@ -229,6 +229,8 @@ pacf(residuals(tp_out_ARMA, type = "normalized"))
 pacf(residuals(tp_out_ARMA))
 
 plot(residuals(tp_out_ARMA, type = "normalized"),residuals(fit))
+
+
 #best model 
 residuals(tp_out_ARMA, type = "normalized")
 tp_out_ARMA <-gls(log(out_tp_c_int) ~ 
