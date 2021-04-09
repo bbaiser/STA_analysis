@@ -105,7 +105,7 @@ acf(residuals(fit))
 
 Box.test(residuals(fit), lag=10, type="Ljung-Box")
 
-plot(residuals(fit))
+plot(residuals(fit))#look at residuals
 
 
 #tp_IN
@@ -118,13 +118,12 @@ auto.arima(sta2_int$in_tp_c_int, trace=T)# Best model: ARIMA(5,0,0) with non-zer
 
 #does it fix autocorrelation issues? YES!
 fit <- Arima(sta2_int$in_tp_c_int, order=c(5,0,0))
-in_arima<-residuals(fit)
 pacf(residuals(fit))
 acf(residuals(fit))
 Box.test(residuals(fit), lag=10, type="Ljung-Box")
 
 
-plot(residuals(fit))
+plot#look at residuals
 
 
 
@@ -134,7 +133,7 @@ pacf(sta2_int$tp_rr_int)
 Box.test(sta2_int$tp_rr_int, lag=10, type="Ljung-Box")
 
 #auto arima
-auto.arima(log1p(sta2_int$tp_rr_int), trace=T)# Best model: ARIMA(0,0,1) with non-zero mean 
+auto.arima(log1p(sta2_int$tp_rr_int), trace=T)# Best model: ARIMA(2,0,1) with non-zero mean 
 
 #does it fix autocorrelation issues? YES!
 fit <- Arima(log1p(sta2_int$tp_rr_int), order=c(2,0,1))
