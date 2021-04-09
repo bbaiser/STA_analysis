@@ -1,7 +1,8 @@
 ####Model selection for individual STAs (2006-2020)
 
 #Packages
-
+install.packages("itsmr")
+library(itsmr)
 library(dplyr)
 library(tidyr)
 library(plyr)
@@ -11,6 +12,8 @@ library(lme4)
 library(lmtest)
 library(MuMIn) 
 library(lme4)
+library(zoo)
+library(forecast)
 
 
 #import data####
