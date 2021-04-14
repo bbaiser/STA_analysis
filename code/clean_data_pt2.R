@@ -1,3 +1,9 @@
+library(dplyr)
+library(tidyr)
+library(plyr)
+library(ggplot2)
+
+
 #interpolate all varaibles for sta2 with spline
 
 NA_dat<-read.csv("data/4_sta.csv", row=1) #complete data frame compiled by Jing HU on 3/2/2021

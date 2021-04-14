@@ -25,8 +25,8 @@ head(NA_dat)
 full_dat<-NA_dat %>%
   select(out_tp_c,in_tp_c,tp_rr, sta,por2) 
 #%>%filter(complete.cases(.))
-
-
+mod_vars<-NA_dat %>%
+  select(out_tp_c,in_tp_c,tp_rr,in_tn_c,tn_rr,in_ca_c,ca_rr,in_water_l,temp_mean, rainfall_mean,sta,por2, month, year) 
 ####explore model "piece" predicting total p outflow conc. (out_tp_c )####
 #tp OUTPUT= tp INPUT +TP retention rate
 
@@ -275,7 +275,8 @@ cor.results %>% arrange(AIC)
 #with season
 Arima_fit <- Arima(log(ts(sta2_int$out_tp_c_int, frequency = 12)), xreg=x_vars, order=c(1,0,0), seasonal=c(1,0,0))
 summary(Arima_fit)
-
+plot(sta2_int$in_tp_c_int,sta2_int$out_tp_c_int)
+cor(sta2_int$in_tp_c_int,sta2_int$tp_rr_int)
 #test coefficients
 coeftest(Arima_fit)
 
