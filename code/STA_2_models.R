@@ -1,6 +1,6 @@
 ####STA 2 PIECEWISE MODELS
 
-#Packages
+#Packages####
 #install.packages("itsmr")
 library(itsmr)
 library(dplyr)
@@ -16,53 +16,56 @@ library(zoo)
 library(forecast)
 library(piecewiseSEM)
 
-#import data####
-
+#Import data####
 NA_dat<-read.csv("data/4_sta.csv", row=1) #complete data frame compiled by Jing HU on 3/2/2021
 
 head(NA_dat)
 
 
-#this was vars for only tpout model now we take all vars below
-#full_dat<-NA_dat %>%
-  #select(out_tp_c,in_tp_c,tp_rr, sta,por2) 
-#%>%filter(complete.cases(.))
+#subset for sta2
+sta2<-subset(NA_dat,sta %in% c("sta_2"))
 
-mod_vars<-NA_dat %>%
-  select(out_tp_c,in_tp_c,tp_rr,in_tn_c,tn_rr,in_ca_c,ca_rr,in_water_l,temp_mean, rainfall_mean,sta,por2, month, year) 
-####explore model "piece" predicting total p outflow conc. (out_tp_c )####
+
+#select variables used in model (missing HRT, VEG as of 4/15/21; check for others)
+mod_vars<-sta2 %>%
+  select(out_tp_c,in_tp_c,tp_rr,in_tn_c,tn_rr,in_ca_c,ca_rr,in_water_l,temp_mean, rainfall_mean,sta,por2, month, year)
+
+
+#interpolate using splines for each variable. some don;t have nas and dont need it
+sta2_int<-mod_vars%>%
+  mutate(out_tp_c_int=na.spline(sta2$out_tp_c,sta2$por2))%>%   #interpolate over 6 nas
+  mutate(in_tp_c_int=na.spline(sta2$in_tp_c,sta2$por2))%>%     #interpolate over 1 na
+  mutate(tp_rr_int=na.spline(sta2$tp_rr,sta2$por2))%>%         #no na
+  mutate(in_tn_c_int=na.spline(sta2$in_tn_c,sta2$por2))%>%     #1 na
+  mutate(tn_rr_int=na.spline(sta2$tn_rr,sta2$por2))%>%         #no na
+  mutate(in_ca_c_int=na.spline(sta2$in_ca_c,sta2$por2))%>%     #1 na
+  mutate(ca_rr_int=na.spline(sta2$ca_rr,sta2$por2))%>%         #no na
+  mutate(in_water_l_int=na.spline(sta2$in_water_l,sta2$por2))%>%#no na
+  mutate(temp_mean_int=na.spline(sta2$temp_mean,sta2$por2))%>% #no na
+  mutate(rainfall_mean_int=na.spline(sta2$rainfall_mean,sta2$por2))#no na
+
+# calculate the # of na's for given variable
+count(is.na(subset(mod_vars,sta %in% c("sta_2"))$in_tn_c))#of nas in out_tp_c
+
+#### Model "piece" predicting total p outflow conc. (out_tp_c_int )####
 #tp OUTPUT= tp INPUT +TP retention rate
 
 #Histograms of variables in the model. looking for outliers
-hist(full_dat$out_tp_c,  breaks = 1000) # value of 0.643951 for data point 225 seems like a data error
-boxplot(full_dat$out_tp_c)
 
-hist(full_dat$in_tp_c,  breaks = 1000) # 
-boxplot(full_dat$in_tp_c)
+hist(sta2_int$out_tp_c_int,  breaks = 1000) # value of 0.643951 for data point 225 seems like a data error
+boxplot(sta2_int$out_tp_c_int)
 
-hist(full_dat$tp_rr,  breaks = 1000) # 
-boxplot(full_dat$tp_rr)
+hist(sta2_int$in_tp_c_int,  breaks = 1000) # 
+boxplot(sta2_int$in_tp_c_int)
+
+hist(sta2_int$tp_rr_int,  breaks = 1000) # 
+boxplot(sta2_int$tp_rr_int)
 
 
 #remove the outlier/error from the tp_out (point 225)
 #p_out_dat<- full_dat %>%
 #filter(out_tp_c < 0.2)  
 
-
-#look time series for STA2
-#subset for sta2
-sta2<-subset(full_dat,sta %in% c("sta_2"))
-
-
-#interpolate using splines for each varaible
-#not this is just for this model and needs to be done for all other variables in the path diagram (i.e.,no-na's)
-sta2_int<-sta2%>%
-  mutate(out_tp_c_int=na.spline(sta2$out_tp_c,sta2$por2))%>%#interpolate over 6 nas
-  mutate(in_tp_c_int=na.spline(sta2$in_tp_c,sta2$por2))%>%#interpolate over 1 na
-  mutate(tp_rr_int=na.spline(sta2$tp_rr,sta2$por2))#no na
-
-#of nas in given variable
-count(is.na(subset(full_dat,sta %in% c("sta_2"))$tp_rr))#of nas in out_tp_c
 
 #plot time series
 
@@ -89,26 +92,25 @@ sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=tp_rr_int)) +
 sep_sta_2
 
 
-####full model (with colinear predictors)####
-#regular model model
+
+#GLS model without temporal correlation structure (note: with collinear predictors)
 
 tp_out <-gls(log(out_tp_c_int) ~  in_tp_c_int + tp_rr_int, data = sta2_int)
 summary(tp_out)
 rsquared(tp_out)
-plot(tp_out)
+plot(tp_out)#look at residual plot
 
 #test stationarity 
 pacf(residuals(tp_out))#lag of 1
 acf(residuals(tp_out))
-Box.test(residuals(tp_out), lag=10, type="Ljung-Box")
-tseries::adf.test(residuals(tp_out)) #want low pvalue
-tseries::kpss.test(residuals(tp_out), null="Trend") #want high pvalue
+Box.test(residuals(tp_out), lag=10, type="Ljung-Box") #want pvalue >0.05
+tseries::adf.test(residuals(tp_out)) #want pvalue <0.05
+tseries::kpss.test(residuals(tp_out), null="Trend") #want pvalue >0.05
 
-#Use auto.arima function
+#Use auto.arima function to get estimates for p, i, and q
 x_vars<-cbind(sta2_int$in_tp_c_int,sta2_int$tp_rr_int)#create data frame with predictor variables
 colnames(x_vars)<-c("TPC_IN","TP_RR" )#give them names
-auto.arima(log(ts(sta2_int$out_tp_c_int, frequency = 12)), xreg=x_vars , trace=T) 
-# Best model: Regression with ARIMA(1,0,0)(1,0,0)[12] errors 
+auto.arima(log(ts(sta2_int$out_tp_c_int, frequency = 12)), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(1,0,0)(1,0,0)[12] errors 
 
 ##test p, q with corARMA manually with a loop
 cor.results <- NULL
@@ -130,9 +132,11 @@ for(i in 0:5) {
 colnames(cor.results) <- c('i', 'j', 'AIC')#Regression with ARMA(1,0) is barely the best: same result as auto arima
 cor.results %>% arrange(AIC)
 
-#run best fit model
+#best fit
+#i j      AIC
+#1 1 0 80.06377
 
-#with arima
+#run best fit model with arima
 
 #with season
 Arima_fit <- Arima(log(ts(sta2_int$out_tp_c_int, frequency = 12)), xreg=x_vars, order=c(1,0,0), seasonal=c(1,0,0))
@@ -142,13 +146,11 @@ summary(Arima_fit)
 coeftest(Arima_fit)
 
 #without season--this seems fine...
-Arima_fit2 <- Arima(log(sta2_int$out_tp_c_int), xreg=x_vars, order=c(1,0,0), seasonal=c(1,0,0))
+Arima_fit2 <- Arima(log(sta2_int$out_tp_c_int), xreg=x_vars, order=c(1,0,0))
 summary(Arima_fit2)
 
 #test coefficients
 coeftest(Arima_fit2)
-
-
 
 #test stationarity 
 pacf(residuals(Arima_fit2))#lag of 1
@@ -182,13 +184,23 @@ tseries::kpss.test(residuals(ARMA_fit, type="normalized"), null="Trend") #want h
 
 
 #plot resdiuals
-E1<-residuals(tp_out_ARMA, type = "normalized")
-plot(x=tp_out,y=E1) #plot residuals
+E1<-residuals(ARMA_fit, type = "normalized")
+plot(x=ARMA_fit,y=E1) #plot residuals - looks ok
 qqnorm(E1)#qqplot
-qqline(E1)
+qqline(E1) # looks ok
 
-#####################################################################################################
-########next model piece predicting Phosphorus Retention Rate####
+
+
+#final model to pass on to piesewiseSEM
+
+TP_out_c <-gls(log(out_tp_c_int)  ~ 
+                 in_tp_c_int+
+                 tp_rr_int,  
+               correlation = corARMA(p = 1, q = 0,form =~ 1),
+               data = sta2_int, 
+               na.action = na.exclude)
+
+#### Model "piece" predicting Phosphorus Retention Rate####
 #PRR=tpin +HLR+NRR+CaRR+HRT_HRL
 
 
@@ -212,7 +224,7 @@ sta2_int<-sta2%>%
 #of nas in given variable
 count(is.na(subset(mod_vars,sta %in% c("sta_2"))$in_tn_c))#of nas in out_tp_c
 
-#plot time series
+#plot time series (need to do this for all vars. maybe...)####
 
 #tp_out
 sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=out_tp_c_int)) +
@@ -238,7 +250,8 @@ sep_sta_2
 
 
 ####full model (with colinear predictors)####
-#regular model model
+
+#model without temporal correlations included
 
 tp_out <-gls(log(out_tp_c_int) ~  in_tp_c_int + tp_rr_int, data = sta2_int)
 summary(tp_out)
