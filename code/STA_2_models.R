@@ -22,9 +22,12 @@ NA_dat<-read.csv("data/4_sta.csv", row=1) #complete data frame compiled by Jing 
 
 head(NA_dat)
 
-full_dat<-NA_dat %>%
-  select(out_tp_c,in_tp_c,tp_rr, sta,por2) 
+
+#this was vars for only tpout model now we take all vars below
+#full_dat<-NA_dat %>%
+  #select(out_tp_c,in_tp_c,tp_rr, sta,por2) 
 #%>%filter(complete.cases(.))
+
 mod_vars<-NA_dat %>%
   select(out_tp_c,in_tp_c,tp_rr,in_tn_c,tn_rr,in_ca_c,ca_rr,in_water_l,temp_mean, rainfall_mean,sta,por2, month, year) 
 ####explore model "piece" predicting total p outflow conc. (out_tp_c )####
@@ -189,7 +192,7 @@ qqline(E1)
 #PRR=tpin +HLR+NRR+CaRR+HRT_HRL
 
 
-sta2<-subset(full_dat,sta %in% c("sta_2"))
+sta2<-subset(mod_vars,sta %in% c("sta_2"))
 
 
 #interpolate using splines for each varaible
@@ -197,10 +200,17 @@ sta2<-subset(full_dat,sta %in% c("sta_2"))
 sta2_int<-sta2%>%
   mutate(out_tp_c_int=na.spline(sta2$out_tp_c,sta2$por2))%>%#interpolate over 6 nas
   mutate(in_tp_c_int=na.spline(sta2$in_tp_c,sta2$por2))%>%#interpolate over 1 na
-  mutate(tp_rr_int=na.spline(sta2$tp_rr,sta2$por2))#no na
+  mutate(tp_rr_int=na.spline(sta2$tp_rr,sta2$por2))%>%#no na
+  mutate(in_tn_c_int=na.spline(sta2$in_tn_c,sta2$por2))%>%#1na
+  mutate(tn_rr_int=na.spline(sta2$tn_rr,sta2$por2))%>%#no.na
+  mutate(in_ca_c_int=na.spline(sta2$in_ca_c,sta2$por2))%>%#1na
+  mutate(ca_rr_int=na.spline(sta2$ca_rr,sta2$por2))%>%#no na
+  mutate(in_water_l_int=na.spline(sta2$in_water_l,sta2$por2))%>%#no na
+  mutate(temp_mean_int=na.spline(sta2$temp_mean,sta2$por2))%>%#no na
+  mutate(rainfall_mean_int=na.spline(sta2$rainfall_mean,sta2$por2))#no na
 
 #of nas in given variable
-count(is.na(subset(full_dat,sta %in% c("sta_2"))$tp_rr))#of nas in out_tp_c
+count(is.na(subset(mod_vars,sta %in% c("sta_2"))$in_tn_c))#of nas in out_tp_c
 
 #plot time series
 
