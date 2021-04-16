@@ -272,9 +272,18 @@ sep_sta_2
 
 #GLS model without temporal correlation structure (note: with collinear predictors)
 
-tp_RR <-gls(log1p(tp_rr_int) ~  in_tp_c_int + ca_rr_int+  tn_rr_int+ por2 + in_water_l_int+temp_mean_int, data = sta2_int)
+tp_RR <-gls(log1p(tp_rr_int) ~  
+              in_tp_c_int + 
+              ca_rr_int+ 
+              tn_rr_int+ 
+              por2 + 
+              in_water_l_int+
+              temp_mean_int, 
+            data = sta2_int)
 
 car::vif(tp_RR)# check variance inflation, looks ok
+#ca_rr and n_rr may be an issues together...
+
 summary(tp_RR)
 rsquared(tp_RR)
 plot(tp_RR)#look at residual plot, looks ok
@@ -286,7 +295,7 @@ tp_RR <-gls(log1p(tp_rr_int) ~  ca_rr_int , data = sta2_int)
 tp_RR <-gls(log1p(tp_rr_int) ~  tn_rr_int , data = sta2_int)
 tp_RR <-gls(log1p(tp_rr_int) ~  in_water_l_int , data = sta2_int)
 tp_RR <-gls(log1p(tp_rr_int) ~  por2 , data = sta2_int)
-plot( sta2_int$tn_rr_int, log1p(sta2_int$tp_rr_int) )
+
 
 #test stationarity 
 pacf(residuals(tp_RR))#lag of 1
@@ -298,6 +307,11 @@ tseries::kpss.test(residuals(tp_RR), null="Trend") #want pvalue >0.05
 #Use auto.arima function to get estimates for p, i, and q
 x_vars<-cbind(sta2_int$in_tp_c_int,sta2_int$ca_rr_int, sta2_int$tn_rr_int, sta2_int$in_water_l_int, sta2_int$por2, sta2_int$temp_mean_int)#create data frame with predictor variables
 colnames(x_vars)<-c("TPC_IN","CA_RR","TN_RR", "IN_H2o", "por","temp" )#give them names
+
+cor(x_vars)#correlation values for vars
+pairs(x_vars)#pirwose plots for vairs
+
+#run auto.arima
 auto.arima(log1p(ts(sta2_int$tp_rr_int, frequency = 12)), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(1,0,0)(1,0,0)[12] errors 
 auto.arima(log1p(sta2_int$tp_rr_int), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(0,0,2)
 
@@ -311,14 +325,14 @@ summary(Arima_fit)
 coeftest(Arima_fit)
 
 #without season--this seems fine...
-Arima_fit2 <- Arima(log1p(sta2_int$tp_rr_int), xreg=x_vars, order=c(0,0,1))
+Arima_fit2 <- Arima(log1p(sta2_int$tp_rr_int), xreg=x_vars, order=c(0,0,2))
 summary(Arima_fit2)
 
 
 
 #test coefficients
 coeftest(Arima_fit2)
-(1-pnorm(abs(Arima_fit2$coef)/sqrt(diag(Arima_fit2$var.coef))))*2#hand calculate pvalues
+(1-pnorm(abs(Arima_fit2$coef)/sqrt(diag(Arima_fit2$var.coef))))*2 #hand calculate pvalues
 
 #test stationarity 
 pacf(residuals(Arima_fit2))#lag of 1
@@ -327,7 +341,6 @@ Box.test(residuals(Arima_fit2), lag=10, type="Ljung-Box")
 tseries::adf.test(residuals(Arima_fit)) #want low pvalue
 tseries::kpss.test(residuals(Arima_fit2), null="Trend") #want high pvalue
 
-cor(sta2_int$tn_rr_int, sta2_int$ca_rr_int)^2
 #now model with gls because we can use it for piecewise SEM
 ARMA_fit <-gls(log1p(tp_rr_int)  ~ 
                  in_tp_c_int+
@@ -341,7 +354,7 @@ ARMA_fit <-gls(log1p(tp_rr_int)  ~
                method="ML")
 
 
-
+cor(sta2_int$ca_rr_int, sta2_int$tn_rr_int)
 #check out model
 car::vif(ARMA_fit)
 summary(ARMA_fit)
@@ -372,9 +385,13 @@ hist(E1)
 
 #final model to pass on to piesewiseSEM
 
-TP_out_c <-gls(log(out_tp_c_int)  ~ 
-                 in_tp_c_int+
-                 tp_rr_int,  
-               correlation = corARMA(p = 1, q = 0,form =~ 1),
-               data = sta2_int, 
-               na.action = na.exclude)
+TPC_RR <-gls(log1p(tp_rr_int)  ~ 
+               in_tp_c_int+
+               ca_rr_int+
+               tn_rr_int+ 
+               in_water_l_int+
+               por2+
+               temp_mean_int,  
+             correlation = corARMA(p = 0, q = 2,form =~ 1),
+             data = sta2_int, 
+             method="ML")
