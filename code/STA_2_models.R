@@ -299,33 +299,9 @@ tseries::kpss.test(residuals(tp_RR), null="Trend") #want pvalue >0.05
 x_vars<-cbind(sta2_int$in_tp_c_int,sta2_int$ca_rr_int, sta2_int$tn_rr_int, sta2_int$in_water_l_int, sta2_int$por2, sta2_int$temp_mean_int)#create data frame with predictor variables
 colnames(x_vars)<-c("TPC_IN","CA_RR","TN_RR", "IN_H2o", "por","temp" )#give them names
 auto.arima(log1p(ts(sta2_int$tp_rr_int, frequency = 12)), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(1,0,0)(1,0,0)[12] errors 
-auto.arima(log1p(sta2_int$tp_rr_int), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(1,0,0)(1,0,0)[12] errors 
+auto.arima(log1p(sta2_int$tp_rr_int), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(0,0,2)
 
-##test p, q with corARMA manually with a loop
-cor.results <- NULL
-for(i in 0:5) {
-  for(j in 0:5) {
-    if(i>0 | j>0) {
-      tp_out_ARMA <-gls(log(out_tp_c_int)  ~ 
-                          in_tp_c_int+
-                          tp_rr_int,  
-                        correlation = corARMA(p = i, q = j,form =~ 1),
-                        data = sta2_int, 
-                        na.action = na.exclude)
-      cor.results<-as.data.frame(rbind(cor.results,c(i, j, AIC(tp_out_ARMA))))
-    }
-  }
-}
 
-#results
-colnames(cor.results) <- c('i', 'j', 'AIC')#Regression with ARMA(1,0) is barely the best: same result as auto arima
-cor.results %>% arrange(AIC)
-
-#best fit
-#i j      AIC
-#1 1 0 80.06377
-
-#run best fit model with arima (NOTE THAT EACH PREDICTOR BY ITSELF has the same corrolation structure (1,0,0))
 
 #with season
 Arima_fit <- Arima(log1p(ts(sta2_int$tp_rr_int, frequency = 12)), xreg=x_vars, order=c(0,0,1), seasonal=c(1,0,1))
@@ -335,11 +311,14 @@ summary(Arima_fit)
 coeftest(Arima_fit)
 
 #without season--this seems fine...
-Arima_fit2 <- Arima(log1p(sta2_int$tp_rr_int), xreg=x_vars, order=c(0,0,2))
+Arima_fit2 <- Arima(log1p(sta2_int$tp_rr_int), xreg=x_vars, order=c(0,0,1))
 summary(Arima_fit2)
+
+
 
 #test coefficients
 coeftest(Arima_fit2)
+(1-pnorm(abs(Arima_fit2$coef)/sqrt(diag(Arima_fit2$var.coef))))*2#hand calculate pvalues
 
 #test stationarity 
 pacf(residuals(Arima_fit2))#lag of 1
@@ -348,7 +327,7 @@ Box.test(residuals(Arima_fit2), lag=10, type="Ljung-Box")
 tseries::adf.test(residuals(Arima_fit)) #want low pvalue
 tseries::kpss.test(residuals(Arima_fit2), null="Trend") #want high pvalue
 
-
+cor(sta2_int$tn_rr_int, sta2_int$ca_rr_int)^2
 #now model with gls because we can use it for piecewise SEM
 ARMA_fit <-gls(log1p(tp_rr_int)  ~ 
                  in_tp_c_int+
@@ -359,13 +338,19 @@ ARMA_fit <-gls(log1p(tp_rr_int)  ~
                  temp_mean_int,  
                correlation = corARMA(p = 0, q = 2,form =~ 1),
                data = sta2_int, 
-               na.action = na.exclude)
+               method="ML")
 
 
+
+#check out model
+car::vif(ARMA_fit)
 summary(ARMA_fit)
+rsquared(ARMA_fit)
 
 #test coefficients
 coeftest(ARMA_fit)
+round((1-pnorm(abs(ARMA_fit$coef)/sqrt(diag(ARMA_fit$varBeta))))*2, digits=8)#hand calculate pvalues
+
 
 #test stationarity 
 pacf(residuals(ARMA_fit, type="normalized"))#lag of 1
@@ -381,6 +366,7 @@ E1<-residuals(ARMA_fit, type = "normalized")
 plot(x=ARMA_fit,y=E1) #plot residuals - looks ok
 qqnorm(E1)#qqplot
 qqline(E1) # looks ok
+hist(E1)
 
 
 
