@@ -17,7 +17,7 @@ library(forecast)
 library(piecewiseSEM)
 
 #Import data####
-NA_dat<-read.csv("data/4_sta.csv", row=1) #complete data frame compiled by Jing HU on 3/2/2021
+NA_dat<-read.csv("data/4_sta_4_16.csv", row=1) #complete data frame compiled by Jing HU on 3/2/2021
 
 head(NA_dat)
 
@@ -28,7 +28,7 @@ sta2<-subset(NA_dat,sta %in% c("sta_2"))
 
 #select variables used in model (missing HRT, VEG as of 4/15/21; check for others)
 mod_vars<-sta2 %>%
-  select(out_tp_c,in_tp_c,tp_rr,in_tn_c,tn_rr,in_ca_c,ca_rr,in_water_l,temp_mean, rainfall_mean,sta,por2, month, year)
+  select(out_tp_c,in_tp_c,tp_rr,in_tn_c,tn_rr,in_ca_c,ca_rr,in_water_l,temp_mean, rainfall_mean,sta,por2, month, year, HRT, HRT_365)
 
 
 #interpolate using splines for each variable. some don;t have nas and dont need it
@@ -42,10 +42,13 @@ sta2_int<-mod_vars%>%
   mutate(ca_rr_int=na.spline(sta2$ca_rr,sta2$por2))%>%         #no na
   mutate(in_water_l_int=na.spline(sta2$in_water_l,sta2$por2))%>%#no na
   mutate(temp_mean_int=na.spline(sta2$temp_mean,sta2$por2))%>% #no na
-  mutate(rainfall_mean_int=na.spline(sta2$rainfall_mean,sta2$por2))#no na
+  mutate(rainfall_mean_int=na.spline(sta2$rainfall_mean,sta2$por2))%>%#no na
+  mutate(HRT_int=na.spline(sta2$HRT, sta2$por2))%>%#6 NA
+  mutate(HRT365_int=na.spline(sta2$HRT_365, sta2$por2))#6NA
+  
 
 # calculate the # of na's for given variable
-count(is.na(subset(mod_vars,sta %in% c("sta_2"))$in_tn_c))#of nas in out_tp_c
+count(is.na(subset(mod_vars,sta %in% c("sta_2"))$HRT_365))#of nas in out_tp_c
 
 #### Model "piece" predicting Total p outflow conc. (out_tp_c_int )####
 #tp OUTPUT= tp INPUT +TP retention rate
