@@ -225,6 +225,12 @@ boxplot(sta2_int$ca_rr_int)
 hist(sta2_int$por2,  breaks = 1000) # 
 boxplot(sta2_int$por2)
 
+hist(sta2_int$HRT,  breaks = 1000) # 
+boxplot(sta2_int$HRT)
+
+
+hist(sta2_int$HRT,  breaks = 1000) # 
+boxplot(log(sta2_int$HRT))
 
 #remove the outlier/error from the tp_out (point 225)
 #p_out_dat<- full_dat %>%
@@ -271,6 +277,12 @@ sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=in_water_l_int)) +
 
 sep_sta_2
 
+#hrt
+sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=HRT_365_int)) +
+  geom_line(aes(color=sta))+xlab("Period of Record (Month)") + 
+  ylab("HRT")
+
+sep_sta_2
 
 
 #GLS model without temporal correlation structure (note: with collinear predictors)
@@ -298,7 +310,7 @@ tp_RR <-gls(log1p(tp_rr_int) ~  ca_rr_int , data = sta2_int)
 tp_RR <-gls(log1p(tp_rr_int) ~  tn_rr_int , data = sta2_int)
 tp_RR <-gls(log1p(tp_rr_int) ~  in_water_l_int , data = sta2_int)
 tp_RR <-gls(log1p(tp_rr_int) ~  por2 , data = sta2_int)
-
+tp_RR <-gls(log1p(tp_rr_int) ~  log(HRT) , data = sta2_int)
 
 #test stationarity 
 pacf(residuals(tp_RR))#lag of 1
