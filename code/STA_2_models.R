@@ -106,7 +106,7 @@ sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=in_tp_c_int)) +
 
 sep_sta_2
 
-
+plot(sta2_int$in_tp_c_int, sta2_int$out)
 #tp_rr
 sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=tp_rr_int)) +
   geom_line(aes(color=sta))+xlab("Period of Record (Month)") + 
@@ -249,7 +249,7 @@ hist(sta2_int$HRT,  breaks = 1000) #
 boxplot(sta2_int$HRT)
 
 
-hist(sta2_int$HRT,  breaks = 1000) # 
+hist(sta2_int$HRT_365,  breaks = 1000) # 
 boxplot(log(sta2_int$HRT))
 
 #remove the outlier/error from the tp_out (point 225)
@@ -303,7 +303,7 @@ sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=in_water_l_int)) +
 sep_sta_2
 
 #hrt
-sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=HRT_int)) +
+sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=log1p(HRT_int))) +
   geom_line(aes(color=sta))+xlab("Period of Record (Month)") + 
   ylab("HRT")
 
@@ -337,9 +337,12 @@ tp_RR <-gls(log1p(tp_rr_int) ~  tn_rr_int , data = sta2_int)
 tp_RR <-gls(log1p(tp_rr_int) ~  in_water_l_int , data = sta2_int)
 tp_RR <-gls(log1p(tp_rr_int) ~  por2 , data = sta2_int)
 tp_RR <-gls(log1p(tp_rr_int) ~  log1p(HRT_int) , data = sta2_int)
+summary(tp_RR)
+rsquared(tp_RR)
+plot(tp_RR)
 
 #test stationarity 
-pacf(residuals(tp_RR))#lag of 1
+pacf(residuals(tp_RR))
 acf(residuals(tp_RR))
 Box.test(residuals(tp_RR), lag=10, type="Ljung-Box") #want pvalue >0.05
 tseries::adf.test(residuals(tp_RR)) #want pvalue <0.05
@@ -350,7 +353,7 @@ x_vars<-cbind(sta2_int$in_tp_c_int,sta2_int$ca_rr_int, sta2_int$tn_rr_int, sta2_
 colnames(x_vars)<-c("TPC_IN","CA_RR","TN_RR", "IN_H2o", "por","temp" )#give them names
 
 cor(x_vars)#correlation values for vars
-pairs(x_vars)#pirwose plots for vairs
+pairs(x_vars)#pairwise plots for vars
 
 #run auto.arima
 auto.arima(log1p(ts(sta2_int$tp_rr_int, frequency = 12)), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(1,0,0)(1,0,0)[12] errors 
@@ -366,7 +369,7 @@ summary(Arima_fit)
 coeftest(Arima_fit)
 
 #without season--this seems fine...
-Arima_fit2 <- Arima(log1p(sta2_int$tp_rr_int), xreg=x_vars, order=c(0,0,2))
+Arima_fit2 <- Arima(log1p(sta2_int$tp_rr_int), xreg=x_vars, order=c(1,0,0))
 summary(Arima_fit2)
 
 
@@ -376,7 +379,7 @@ coeftest(Arima_fit2)
 (1-pnorm(abs(Arima_fit2$coef)/sqrt(diag(Arima_fit2$var.coef))))*2 #hand calculate pvalues
 
 #test stationarity 
-pacf(residuals(Arima_fit2))#lag of 1
+pacf(residuals(Arima_fit))#lag of 1
 acf(residuals(Arima_fit2))
 Box.test(residuals(Arima_fit2), lag=10, type="Ljung-Box")
 tseries::adf.test(residuals(Arima_fit)) #want low pvalue
@@ -389,13 +392,14 @@ ARMA_fit <-gls(log1p(tp_rr_int)  ~
                  tn_rr_int+ 
                  in_water_l_int+
                  por2+
-                 temp_mean_int,  
-               correlation = corARMA(p = 0, q = 2,form =~ 1),
+                 temp_mean_int+
+                 log1p(HRT_int),
+               correlation = corARMA(p = 3, q = 0,form =~ 1),
                data = sta2_int, 
                method="ML")
 
 
-cor(sta2_int$ca_rr_int, sta2_int$tn_rr_int)
+
 #check out model
 car::vif(ARMA_fit)
 summary(ARMA_fit)
