@@ -31,6 +31,26 @@ mod_vars<-sta2 %>%
   select(out_tp_c,in_tp_c,tp_rr,in_tn_c,tn_rr,in_ca_c,ca_rr,in_water_l,temp_mean, rainfall_mean,sta,por2, month, year, HRT, HRT_365)
 
 
+
+#remove outliers using box plot here?
+
+#out <- boxplot.stats(dat$hwy)$out
+#out_ind <- which(dat$hwy %in% c(out))
+#out_ind
+
+
+#lower_bound <- quantile(dat$hwy, 0.025)
+#lower_bound
+
+#upper_bound <- quantile(dat$hwy, 0.975)
+#upper_bound
+
+#outlier_ind <- which(dat$hwy < lower_bound | dat$hwy > upper_bound)
+#outlier_ind
+
+
+
+
 #interpolate using splines for each variable. some don;t have nas and dont need it
 sta2_int<-mod_vars%>%
   mutate(out_tp_c_int=na.spline(sta2$out_tp_c,sta2$por2))%>%   #interpolate over 6 nas
@@ -234,7 +254,12 @@ boxplot(log(sta2_int$HRT))
 
 #remove the outlier/error from the tp_out (point 225)
 #p_out_dat<- full_dat %>%
-#filter(out_tp_c < 0.2)  
+#filter(out_tp_c < 0.2) 
+
+
+#change massive negative value to 0 for now
+
+sta2_int$HRT_int[sta2_int$HRT_int<0] <- 0
 
 
 #plot time series
@@ -278,7 +303,7 @@ sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=in_water_l_int)) +
 sep_sta_2
 
 #hrt
-sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=HRT_365_int)) +
+sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=HRT_int)) +
   geom_line(aes(color=sta))+xlab("Period of Record (Month)") + 
   ylab("HRT")
 
@@ -293,7 +318,8 @@ tp_RR <-gls(log1p(tp_rr_int) ~
               tn_rr_int+ 
               por2 + 
               in_water_l_int+
-              temp_mean_int, 
+              temp_mean_int+
+              log1p(HRT_int), 
             data = sta2_int)
 
 car::vif(tp_RR)# check variance inflation, looks ok
@@ -310,7 +336,7 @@ tp_RR <-gls(log1p(tp_rr_int) ~  ca_rr_int , data = sta2_int)
 tp_RR <-gls(log1p(tp_rr_int) ~  tn_rr_int , data = sta2_int)
 tp_RR <-gls(log1p(tp_rr_int) ~  in_water_l_int , data = sta2_int)
 tp_RR <-gls(log1p(tp_rr_int) ~  por2 , data = sta2_int)
-tp_RR <-gls(log1p(tp_rr_int) ~  log(HRT) , data = sta2_int)
+tp_RR <-gls(log1p(tp_rr_int) ~  log1p(HRT_int) , data = sta2_int)
 
 #test stationarity 
 pacf(residuals(tp_RR))#lag of 1
