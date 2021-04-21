@@ -349,8 +349,8 @@ tseries::adf.test(residuals(tp_RR)) #want pvalue <0.05
 tseries::kpss.test(residuals(tp_RR), null="Trend") #want pvalue >0.05
 
 #Use auto.arima function to get estimates for p, i, and q
-x_vars<-cbind(sta2_int$in_tp_c_int,sta2_int$ca_rr_int, sta2_int$tn_rr_int, sta2_int$in_water_l_int, sta2_int$por2, sta2_int$temp_mean_int)#create data frame with predictor variables
-colnames(x_vars)<-c("TPC_IN","CA_RR","TN_RR", "IN_H2o", "por","temp" )#give them names
+x_vars<-cbind(sta2_int$in_tp_c_int,sta2_int$ca_rr_int, sta2_int$tn_rr_int, sta2_int$in_water_l_int, sta2_int$por2, sta2_int$temp_mean_int, log1p(sta2_int$HRT_int))#create data frame with predictor variables
+colnames(x_vars)<-c("TPC_IN","CA_RR","TN_RR", "IN_H2o", "por","temp", "HRT" )#give them names
 
 cor(x_vars)#correlation values for vars
 pairs(x_vars)#pairwise plots for vars
@@ -369,7 +369,7 @@ summary(Arima_fit)
 coeftest(Arima_fit)
 
 #without season--this seems fine...
-Arima_fit2 <- Arima(log1p(sta2_int$tp_rr_int), xreg=x_vars, order=c(1,0,0))
+Arima_fit2 <- Arima(log1p(sta2_int$tp_rr_int), xreg=x_vars, order=c(2,0,0))
 summary(Arima_fit2)
 
 
@@ -379,11 +379,38 @@ coeftest(Arima_fit2)
 (1-pnorm(abs(Arima_fit2$coef)/sqrt(diag(Arima_fit2$var.coef))))*2 #hand calculate pvalues
 
 #test stationarity 
-pacf(residuals(Arima_fit))#lag of 1
+pacf(residuals(Arima_fit2))#lag of 1
 acf(residuals(Arima_fit2))
 Box.test(residuals(Arima_fit2), lag=10, type="Ljung-Box")
 tseries::adf.test(residuals(Arima_fit)) #want low pvalue
 tseries::kpss.test(residuals(Arima_fit2), null="Trend") #want high pvalue
+
+
+
+
+
+cor.results <- NULL
+for(i in 0:3) {
+  for(j in 0:3) {
+    if(i>0 | j>0) {
+      tp_out_ARMA <-gls(log1p(tp_rr_int)  ~ 
+                          in_tp_c_int+
+                          ca_rr_int+
+                          tn_rr_int+ 
+                          in_water_l_int+
+                          por2+
+                          temp_mean_int+
+                          log1p(HRT_int),
+                        correlation = corARMA(p = i, q = j),
+                        data = sta2_int, 
+                        method="ML")
+      cor.results<-as.data.frame(rbind(cor.results,c(i, j, AIC(tp_out_ARMA))))
+    }
+  }
+}
+
+colnames(cor.results) <- c('i', 'j', 'AIC')
+cor.results %>% arrange(AIC)
 
 #now model with gls because we can use it for piecewise SEM
 ARMA_fit <-gls(log1p(tp_rr_int)  ~ 
@@ -394,11 +421,11 @@ ARMA_fit <-gls(log1p(tp_rr_int)  ~
                  por2+
                  temp_mean_int+
                  log1p(HRT_int),
-               correlation = corARMA(p = 3, q = 0,form =~ 1),
+               correlation = corARMA(p = 3, q = 2,form =~ 1),
                data = sta2_int, 
                method="ML")
 
-
+AIC(ARMA_fit)
 
 #check out model
 car::vif(ARMA_fit)
@@ -428,7 +455,7 @@ hist(E1)
 
 
 
-#final model to pass on to piesewiseSEM
+#final model to pass on to piecewiseSEM
 
 TPC_RR <-gls(log1p(tp_rr_int)  ~ 
                in_tp_c_int+
@@ -436,8 +463,9 @@ TPC_RR <-gls(log1p(tp_rr_int)  ~
                tn_rr_int+ 
                in_water_l_int+
                por2+
-               temp_mean_int,  
-             correlation = corARMA(p = 0, q = 2,form =~ 1),
+               temp_mean_int+
+               log1p(HRT_int),
+             correlation = corARMA(p = 3, q = 2,form =~ 1),
              data = sta2_int, 
              method="ML")
 
