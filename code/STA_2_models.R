@@ -701,8 +701,6 @@ sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=ca_rr_int)) +
 
 sep_sta_2
 
-
-
 #hydraulic inflow
 sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=in_water_l_int)) +
   geom_line(aes(color=sta))+xlab("Period of Record (Month)") + 
@@ -725,7 +723,7 @@ sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=in_ca_c_int)) +
 
 sep_sta_2
 
-#GLS model without temporal correlation structure (note: with collinear predictors)
+####GLS model without temporal correlation structure 
 
 tca_RR <-gls(ca_rr_int~  
               in_ca_c_int + 
@@ -735,12 +733,13 @@ tca_RR <-gls(ca_rr_int~
               log1p(HRT_int), 
             data = sta2_int)
 
-AIC(tca_RR)
+
 car::vif(tca_RR)# check variance inflation, looks ok
-#ca_rr and n_rr may be an issues together...
+
 
 summary(tca_RR)
 rsquared(tca_RR)
+AIC(tca_RR)
 plot(tca_RR)#look at residual plot, looks ok
 
 
@@ -757,7 +756,7 @@ pacf(residuals(tca_RR))#lag of 1
 acf(residuals(tca_RR))
 Box.test(residuals(tp_RR), lag=10, type="Ljung-Box") #want pvalue >0.05
 tseries::adf.test(residuals(tp_RR)) #want pvalue <0.05
-tseries::kpss.test(residuals(tp_RR), null="Trend") #want pvalue >0.05
+tseries::kpss.test(residuals(tp_RR)) #want pvalue >0.05
 
 #Use auto.arima function to get estimates for p, i, and q
 x_vars<-cbind(sta2_int$in_ca_c_int, sta2_int$in_water_l_int, sta2_int$por2, sta2_int$temp_mean_int, log1p(sta2_int$HRT_int))#create data frame with predictor variables
@@ -767,7 +766,7 @@ cor(x_vars)#correlation values for vars
 pairs(x_vars)#pirwose plots for vairs
 
 #run auto.arima
-auto.arima(ts(sta2_int$tn_rr_int, frequency = 12), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(1,0,0)(1,0,0)[12] errors 
+auto.arima(ts(sta2_int$ca_rr_int, frequency = 12), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(1,0,0)(1,0,0)[12] errors 
 auto.arima(sta2_int$ca_rr_int, xreg=x_vars , trace=T) # Best model: Regression with ARIMA(0,0,2)
 
 
@@ -800,8 +799,8 @@ tseries::kpss.test(residuals(Arima_fit2), null="Trend") #want high pvalue
 
 
 cor.results <- NULL
-for(i in 0:3) {
-  for(j in 0:3) {
+for(i in 0:2) {
+  for(j in 0:2) {
     if(i>0 | j>0) {
       tp_out_ARMA <-gls(ca_rr_int~  
                           in_ca_c_int + 
@@ -818,6 +817,7 @@ for(i in 0:3) {
 
 colnames(cor.results) <- c('i', 'j', 'AIC')
 cor.results %>% arrange(AIC)
+
 #now model with gls because we can use it for piecewise SEM
 ARMA_fit <-gls(ca_rr_int~  
                           in_ca_c_int + 
@@ -825,12 +825,12 @@ ARMA_fit <-gls(ca_rr_int~
                           in_water_l_int+
                           temp_mean_int+
                           log1p(HRT_int), 
-                        #correlation = corARMA(p = 0, q = 1),
+                        #correlation = corARMA(p = 0, q = 1),# this does not increase fit so no arma structure
                         data = sta2_int,
                         method="ML")
 
 
-cor(sta2_int$ca_rr_int, sta2_int$tn_rr_int)
+
 #check out model
 car::vif(ARMA_fit)
 summary(ARMA_fit)
@@ -842,8 +842,8 @@ round((1-pnorm(abs(ARMA_fit$coef)/sqrt(diag(ARMA_fit$varBeta))))*2, digits=8)#ha
 
 
 #test stationarity 
-pacf(residuals(ARMA_fit, type="normalized"))#lag of 1
-acf(residuals(ARMA_fit, type="normalized"))
+pacf(residuals(ARMA_fit, type="normalized"))#good
+acf(residuals(ARMA_fit, type="normalized"))#good
 Box.test(residuals(ARMA_fit, type="normalized"), lag=10, type="Ljung-Box")
 tseries::adf.test(residuals(ARMA_fit, type="normalized")) #want low pvalue
 tseries::kpss.test(residuals(ARMA_fit, type="normalized"), null="Trend") #want high pvalue
@@ -860,6 +860,7 @@ hist(E1)
 
 
 #final model to pass on to piecewiseSEM
+#residuals are heterosjedastic and non-normal...
 
 TnC_RR <-gls(tn_rr_int  ~ 
                in_tn_c_int+
@@ -868,6 +869,5 @@ TnC_RR <-gls(tn_rr_int  ~
                por2+
                temp_mean_int+
                log1p(HRT_int),  
-             correlation = corARMA(p = 1, q = 0),
              data = sta2_int, 
              method="ML")
