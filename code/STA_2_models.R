@@ -763,7 +763,7 @@ pairs(x_vars)#pirwose plots for vairs
 
 #run auto.arima
 auto.arima(ts(sta2_int$ca_rr_int, frequency = 12), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(1,0,0)(1,0,0)[12] errors 
-auto.arima(sta2_int$ca_rr_int, xreg=x_vars , trace=T) # Best model: Regression with ARIMA(0,0,2)
+auto.arima(sta2_int$ca_rr_int, xreg=x_vars , trace=T) # Best model: Regression with ARIMA(4,0,0), but model with
 
 
 
@@ -775,7 +775,7 @@ summary(Arima_fit)
 coeftest(Arima_fit)
 
 #without season--this seems fine...
-Arima_fit2 <- Arima(sta2_int$ca_rr_int, xreg=x_vars, order=c(0,0,0))
+Arima_fit2 <- Arima(sta2_int$ca_rr_int, xreg=x_vars, order=c(0,0,0))#model with no ma or ar estimates
 summary(Arima_fit2)
 
 
@@ -858,15 +858,15 @@ hist(E1)
 #final model to pass on to piecewiseSEM
 #residuals are heterosjedastic and non-normal...
 
-TnC_RR <-gls(tn_rr_int  ~ 
-               in_tn_c_int+
-               ca_rr_int+
+TC_RR <-gls(ca_rr_int~  
+               in_ca_c_int + 
+               por2 + 
                in_water_l_int+
-               por2+
                temp_mean_int+
-               log1p(HRT_int),  
-             data = sta2_int, 
+               log1p(HRT_int), 
+             data = sta2_int,
              method="ML")
+
 
 #### Model "piece" predicting Hydraulic Retention Rate####
 
