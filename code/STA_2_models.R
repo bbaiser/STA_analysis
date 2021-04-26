@@ -871,3 +871,176 @@ TnC_RR <-gls(tn_rr_int  ~
                log1p(HRT_int),  
              data = sta2_int, 
              method="ML")
+
+#### Model "piece" predicting Hydraulic Retention Rate####
+
+#plot time series
+
+sep_sta_2
+
+#hydraulic inflow
+sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=in_water_l_int)) +
+  geom_line(aes(color=sta))+xlab("Period of Record (Month)") + 
+  ylab("Inflow Hydraulic loading rate")
+
+sep_sta_2
+
+
+#hrt
+sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=HRT_int)) +
+  geom_line(aes(color=sta))+xlab("Period of Record (Month)") + 
+  ylab("HRT")
+
+sep_sta_2
+
+#precip
+sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=rainfall_mean_int)) +
+  geom_line(aes(color=sta))+xlab("Period of Record (Month)") + 
+  ylab("precipitation montly mean")
+
+sep_sta_2
+
+####GLS model without temporal correlation structure 
+
+HRT <-gls(log1p(HRT_int)~  
+               por2 + 
+               in_water_l_int+
+               rainfall_mean_int,
+             data = sta2_int)
+
+
+car::vif(HRT)# check variance inflation, looks ok
+
+
+summary(HRT)
+rsquared(HRT)
+AIC(HRT)
+plot(HRT)#look at residual plot, looks ok
+
+
+#looking at univartiate models
+HRT <-gls(log1p(HRT_int) ~  por2, data = sta2_int)
+HRT <-gls(log1p(HRT_int)  ~  in_water_l_int , data = sta2_int)
+HRT <-gls(log1p(HRT_int) ~  rainfall_mean_int , data = sta2_int)
+
+
+#test stationarity 
+pacf(residuals(HRT))#lag of 1
+acf(residuals(HRT))
+Box.test(residuals(HRT), lag=10, type="Ljung-Box") #want pvalue >0.05
+tseries::adf.test(residuals(HRT)) #want pvalue <0.05
+tseries::kpss.test(residuals(HRT)) #want pvalue >0.05
+
+#Use auto.arima function to get estimates for p, i, and q
+x_vars<-cbind( sta2_int$in_water_l_int, sta2_int$por2, sta2_int$rainfall_mean_int)#create data frame with predictor variables
+colnames(x_vars)<-c( "IN_H2o", "por","precip" )#give them names
+
+cor(x_vars)#correlation values for vars
+pairs(x_vars)#pirwose plots for vairs
+
+#run auto.arima
+auto.arima(ts(sta2_int$ca_rr_int, frequency = 12), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(1,0,0)(1,0,0)[12] errors 
+auto.arima(log1p(sta2_int$HRT_int), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(0,0,1)
+
+
+
+#with season
+Arima_fit <- Arima(log1p(ts(sta2_int$tp_rr_int, frequency = 12)), xreg=x_vars, order=c(0,0,1), seasonal=c(1,0,1))
+summary(Arima_fit)
+
+#test coefficients
+coeftest(Arima_fit)
+
+#without season--this seems fine...
+Arima_fit2 <- Arima(log1p(sta2_int$HRT_int), xreg=x_vars, order=c(0,0,1))
+summary(Arima_fit2)
+
+
+
+#test coefficients
+coeftest(Arima_fit2)
+(1-pnorm(abs(Arima_fit2$coef)/sqrt(diag(Arima_fit2$var.coef))))*2 #hand calculate pvalues
+
+#test stationarity 
+pacf(residuals(Arima_fit2))#lag of 1
+acf(residuals(Arima_fit2))
+Box.test(residuals(Arima_fit2), lag=10, type="Ljung-Box")
+tseries::adf.test(residuals(Arima_fit)) #want low pvalue
+tseries::kpss.test(residuals(Arima_fit2), null="Trend") #want high pvalue
+
+
+
+
+cor.results <- NULL
+for(i in 0:2) {
+  for(j in 0:2) {
+    if(i>0 | j>0) {
+      tp_out_ARMA <-gls(ca_rr_int~  
+                          in_ca_c_int + 
+                          por2 + 
+                          in_water_l_int+
+                          temp_mean_int+
+                          log1p(HRT_int), 
+                        correlation = corARMA(p = i, q = j),
+                        data = sta2_int)
+      cor.results<-as.data.frame(rbind(cor.results,c(i, j, AIC(tp_out_ARMA))))
+    }
+  }
+}
+
+colnames(cor.results) <- c('i', 'j', 'AIC')
+cor.results %>% arrange(AIC)
+
+#now model with gls because we can use it for piecewise SEM
+ARMA_fit <-gls(ca_rr_int~  
+                 in_ca_c_int + 
+                 por2 + 
+                 in_water_l_int+
+                 temp_mean_int+
+                 log1p(HRT_int), 
+               #correlation = corARMA(p = 0, q = 1),# this does not increase fit so no arma structure
+               data = sta2_int,
+               method="ML")
+
+
+
+#check out model
+car::vif(ARMA_fit)
+summary(ARMA_fit)
+rsquared(ARMA_fit)
+
+#test coefficients
+coeftest(ARMA_fit)
+round((1-pnorm(abs(ARMA_fit$coef)/sqrt(diag(ARMA_fit$varBeta))))*2, digits=8)#hand calculate pvalues
+
+
+#test stationarity 
+pacf(residuals(ARMA_fit, type="normalized"))#good
+acf(residuals(ARMA_fit, type="normalized"))#good
+Box.test(residuals(ARMA_fit, type="normalized"), lag=10, type="Ljung-Box")
+tseries::adf.test(residuals(ARMA_fit, type="normalized")) #want low pvalue
+tseries::kpss.test(residuals(ARMA_fit, type="normalized"), null="Trend") #want high pvalue
+
+
+
+#plot resdiuals
+E1<-residuals(ARMA_fit, type = "normalized")
+plot(x=ARMA_fit,y=E1) #plot residuals - looks ok
+qqnorm(E1)#qqplot
+qqline(E1) # looks ok
+hist(E1)
+
+
+
+#final model to pass on to piecewiseSEM
+#residuals are heterosjedastic and non-normal...
+
+TnC_RR <-gls(tn_rr_int  ~ 
+               in_tn_c_int+
+               ca_rr_int+
+               in_water_l_int+
+               por2+
+               temp_mean_int+
+               log1p(HRT_int),  
+             data = sta2_int, 
+             method="ML")
