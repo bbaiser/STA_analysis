@@ -68,7 +68,7 @@ sta2_int<-mod_vars%>%
   
 
 # calculate the # of na's for given variable
-count(is.na(subset(mod_vars,sta %in% c("sta_2"))$HRT_365))#of nas in out_tp_c
+#count(is.na(subset(mod_vars,sta %in% c("sta_2"))$HRT_365))#of nas in out_tp_c
 
 #### Model "piece" predicting Total p outflow conc. (out_tp_c_int )####
 #tp OUTPUT= tp INPUT +TP retention rate
@@ -876,7 +876,7 @@ TnC_RR <-gls(tn_rr_int  ~
 
 #plot time series
 
-sep_sta_2
+
 
 #hydraulic inflow
 sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=in_water_l_int)) +
@@ -920,8 +920,8 @@ plot(HRT)#look at residual plot, looks ok
 
 #looking at univartiate models
 HRT <-gls(log1p(HRT_int) ~  por2, data = sta2_int)
-HRT <-gls(log1p(HRT_int)  ~  in_water_l_int , data = sta2_int)
-HRT <-gls(log1p(HRT_int) ~  rainfall_mean_int , data = sta2_int)
+HRT <-gls(log1p(HRT_int)  ~  log(in_water_l_int) , data = sta2_int)
+HRT <-gls(log1p(HRT_int) ~  log(rainfall_mean_int) , data = sta2_int)
 
 
 #test stationarity 
@@ -975,13 +975,10 @@ cor.results <- NULL
 for(i in 0:2) {
   for(j in 0:2) {
     if(i>0 | j>0) {
-      tp_out_ARMA <-gls(ca_rr_int~  
-                          in_ca_c_int + 
+      tp_out_ARMA <-gls(log1p(HRT_int)~  
                           por2 + 
                           in_water_l_int+
-                          temp_mean_int+
-                          log1p(HRT_int), 
-                        correlation = corARMA(p = i, q = j),
+                          rainfall_mean_int,
                         data = sta2_int)
       cor.results<-as.data.frame(rbind(cor.results,c(i, j, AIC(tp_out_ARMA))))
     }
