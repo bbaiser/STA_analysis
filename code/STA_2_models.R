@@ -66,7 +66,7 @@ sta2_int<-mod_vars%>%
   mutate(HRT_int=na.spline(sta2$HRT, sta2$por2))%>%#6 NA
   mutate(HRT365_int=na.spline(sta2$HRT_365, sta2$por2))#6NA
   
-
+sta2_int$HRT_int[sta2_int$HRT_int<0] <- 0#replace ridiculous neg interpolated value with 0
 # calculate the # of na's for given variable
 #count(is.na(subset(mod_vars,sta %in% c("sta_2"))$HRT_365))#of nas in out_tp_c
 
@@ -256,10 +256,6 @@ boxplot(log(sta2_int$HRT))
 #p_out_dat<- full_dat %>%
 #filter(out_tp_c < 0.2) 
 
-
-#change massive negative value to 0 for now
-
-sta2_int$HRT_int[sta2_int$HRT_int<0] <- 0
 
 
 #plot time series
@@ -979,6 +975,7 @@ for(i in 0:2) {
                           por2 + 
                           in_water_l_int+
                           rainfall_mean_int,
+                        correlation = corARMA(p = i, q = j),
                         data = sta2_int)
       cor.results<-as.data.frame(rbind(cor.results,c(i, j, AIC(tp_out_ARMA))))
     }
@@ -986,18 +983,15 @@ for(i in 0:2) {
 }
 
 colnames(cor.results) <- c('i', 'j', 'AIC')
-cor.results %>% arrange(AIC)
+cor.results %>% arrange(AIC)# (1,0) sligthly better than 0,1 . go with that.
 
 #now model with gls because we can use it for piecewise SEM
-ARMA_fit <-gls(ca_rr_int~  
-                 in_ca_c_int + 
+ARMA_fit <-gls(log1p(HRT_int)~  
                  por2 + 
                  in_water_l_int+
-                 temp_mean_int+
-                 log1p(HRT_int), 
-               #correlation = corARMA(p = 0, q = 1),# this does not increase fit so no arma structure
-               data = sta2_int,
-               method="ML")
+                 rainfall_mean_int,
+               correlation = corARMA(p = 1, q = 0),
+               data = sta2_int)
 
 
 
@@ -1032,12 +1026,9 @@ hist(E1)
 #final model to pass on to piecewiseSEM
 #residuals are heterosjedastic and non-normal...
 
-TnC_RR <-gls(tn_rr_int  ~ 
-               in_tn_c_int+
-               ca_rr_int+
+HRT_mod <-gls(log1p(HRT_int)~  
+               por2 + 
                in_water_l_int+
-               por2+
-               temp_mean_int+
-               log1p(HRT_int),  
-             data = sta2_int, 
-             method="ML")
+               rainfall_mean_int,
+             correlation = corARMA(p = 1, q = 0),
+             data = sta2_int)
