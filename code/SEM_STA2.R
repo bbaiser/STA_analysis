@@ -3,10 +3,6 @@
 # Original author: Ben Baiser
 # Last updated: 12/15/2020
 
-#######
-#setwd
-setwd("C:/Users/bbaiser/Dropbox/current research/CONTINENTAL PITCHER PLANT SURVEY/ANALYSIS")
-
 # Load required libraries
 library(nlme)
 library(piecewiseSEM)
@@ -113,6 +109,12 @@ summary(model1, .progressBar = F)
 mod1_coefs<-coefs(model1)
 write.csv(mod1_coefs, file = "results/mpd_model.csv", quote = FALSE, row.names = F)
 
+plot(model1)
+
+AIC(model1)
+plot(model1, node_attrs = list(
+  shape = "rectangle", color = "black",
+  fillcolor = "orange", x = 3, y=1:12))
 
 #Direct Effects on microbes
 microbes.table<-mod1_coefs[which(mod1_coefs$Response== "mpd.obs" & mod1_coefs$P.Value <=0.05), ]
