@@ -87,8 +87,12 @@ boxplot(sta2_int$tp_rr_int)
 
 #remove the outlier/error from the tp_out (point 225)
 #p_out_dat<- full_dat %>%
-#filter(out_tp_c < 0.2)  
+#filter(out_tp_c < 0.2)
 
+#code to remove outliers based on box plot
+#out <- boxplot.stats(dat$hwy)$out
+#out_ind <- which(dat$hwy %in% c(out))
+#out_ind
 
 #plot time series
 
