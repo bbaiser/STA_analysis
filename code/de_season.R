@@ -6,7 +6,9 @@ library(dplyr)
 library(tidyr)
 library(plyr)
 library(ggplot2)
-
+library(zoo)
+library(forecast)
+library(lmtest)
 #Import data####
 NA_dat<-read.csv("data/4_sta_4_16.csv", row=1) #complete data frame compiled by Jing HU on 3/2/2021
 
@@ -183,8 +185,7 @@ sta2_int<-mod_vars%>%
   mutate(HRT_seas=HRT_seas)
 
 #piecewise models####
-
-#tp_out_model with no temporal correlation
+#### Model "piece" predicting Phosphorus outflow####
 
 tp_out <-gls(log(tp_out_seas) ~  tp_in_seas+ tp_rr_seas, data = sta2_int)
 summary(tp_out)
@@ -612,7 +613,7 @@ tca_RR <-gls(tca_rr_seas~
                HRT_seas, 
              data = sta2_int)
 
-AIC(tca_RR
+AIC(tca_RR)
 car::vif(tca_RR)# check variance inflation, looks ok
 
 
@@ -733,50 +734,26 @@ hist(E1)
 #final model to pass on to piecewiseSEM
 #residuals are heterosjedastic and non-normal...
 
-TC_RR <-gls(ca_rr_int~  
-              in_ca_c_int + 
+TC_RR <-gls(tca_rr_seas~  
+              tca_in_seas + 
               por2 + 
-              in_water_l_int+
-              temp_mean_int+
-              log1p(HRT_int), 
+              in_water_seas+
+              temp_mean_seas+
+              HRT_seas,  
+            #correlation = corARMA(p = 0, q = 1),# this does not increase fit so no arma structure
             data = sta2_int,
             method="ML")
 
 
 #### Model "piece" predicting Hydraulic Retention Rate####
 
-#plot time series
-
-
-
-#hydraulic inflow
-sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=in_water_l_int)) +
-  geom_line(aes(color=sta))+xlab("Period of Record (Month)") + 
-  ylab("Inflow Hydraulic loading rate")
-
-sep_sta_2
-
-
-#hrt
-sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=HRT_int)) +
-  geom_line(aes(color=sta))+xlab("Period of Record (Month)") + 
-  ylab("HRT")
-
-sep_sta_2
-
-#precip
-sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=rainfall_mean_int)) +
-  geom_line(aes(color=sta))+xlab("Period of Record (Month)") + 
-  ylab("precipitation montly mean")
-
-sep_sta_2
 
 ####GLS model without temporal correlation structure 
 
-HRT <-gls(log1p(HRT_int)~  
+HRT <-gls(HRT_seas~  
             por2 + 
-            in_water_l_int+
-            rainfall_mean_int,
+            in_water_seas+
+            rain_mean_seas,
           data = sta2_int)
 
 
@@ -796,14 +773,14 @@ HRT <-gls(log1p(HRT_int) ~  log(rainfall_mean_int) , data = sta2_int)
 
 
 #test stationarity 
-pacf(residuals(HRT))#lag of 1
+pacf(residuals(HRT))#lag of 1 and 2
 acf(residuals(HRT))
 Box.test(residuals(HRT), lag=10, type="Ljung-Box") #want pvalue >0.05
 tseries::adf.test(residuals(HRT)) #want pvalue <0.05
 tseries::kpss.test(residuals(HRT)) #want pvalue >0.05
 
 #Use auto.arima function to get estimates for p, i, and q
-x_vars<-cbind( sta2_int$in_water_l_int, sta2_int$por2, sta2_int$rainfall_mean_int)#create data frame with predictor variables
+x_vars<-cbind( sta2_int$in_water_seas, sta2_int$por2, sta2_int$rain_mean_seas)#create data frame with predictor variables
 colnames(x_vars)<-c( "IN_H2o", "por","precip" )#give them names
 
 cor(x_vars)#correlation values for vars
@@ -811,19 +788,13 @@ pairs(x_vars)#pirwose plots for vairs
 
 #run auto.arima
 auto.arima(ts(sta2_int$ca_rr_int, frequency = 12), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(1,0,0)(1,0,0)[12] errors 
-auto.arima(log1p(sta2_int$HRT_int), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(0,0,1)
+auto.arima(sta2_int$HRT_seas, xreg=x_vars , trace=T, seasonal = F) # Best model: Regression with ARIMA(0,0,1)
 
 
 
-#with season
-Arima_fit <- Arima(log1p(ts(sta2_int$tp_rr_int, frequency = 12)), xreg=x_vars, order=c(0,0,1), seasonal=c(1,0,1))
-summary(Arima_fit)
-
-#test coefficients
-coeftest(Arima_fit)
 
 #without season--this seems fine...
-Arima_fit2 <- Arima(log1p(sta2_int$HRT_int), xreg=x_vars, order=c(0,0,1))
+Arima_fit2 <- Arima(sta2_int$HRT_seas, xreg=x_vars, order=c(0,0,1))
 summary(Arima_fit2)
 
 
@@ -833,8 +804,8 @@ coeftest(Arima_fit2)
 (1-pnorm(abs(Arima_fit2$coef)/sqrt(diag(Arima_fit2$var.coef))))*2 #hand calculate pvalues
 
 #test stationarity 
-pacf(residuals(Arima_fit2))#lag of 1
-acf(residuals(Arima_fit2))
+pacf(residuals(Arima_fit2))#fine
+acf(residuals(Arima_fit2))#fine
 Box.test(residuals(Arima_fit2), lag=10, type="Ljung-Box")
 tseries::adf.test(residuals(Arima_fit)) #want low pvalue
 tseries::kpss.test(residuals(Arima_fit2), null="Trend") #want high pvalue
@@ -846,10 +817,10 @@ cor.results <- NULL
 for(i in 0:2) {
   for(j in 0:2) {
     if(i>0 | j>0) {
-      tp_out_ARMA <-gls(log1p(HRT_int)~  
+      tp_out_ARMA <-gls(HRT_seas~  
                           por2 + 
-                          in_water_l_int+
-                          rainfall_mean_int,
+                          in_water_seas+
+                          rain_mean_seas,
                         correlation = corARMA(p = i, q = j),
                         data = sta2_int)
       cor.results<-as.data.frame(rbind(cor.results,c(i, j, AIC(tp_out_ARMA))))
@@ -858,14 +829,14 @@ for(i in 0:2) {
 }
 
 colnames(cor.results) <- c('i', 'j', 'AIC')
-cor.results %>% arrange(AIC)# (1,0) sligthly better than 0,1 . go with that.
+cor.results %>% arrange(AIC)# (0,1) .
 
 #now model with gls because we can use it for piecewise SEM
-ARMA_fit <-gls(log1p(HRT_int)~  
-                 por2 + 
-                 in_water_l_int+
-                 rainfall_mean_int,
-               correlation = corARMA(p = 1, q = 0),
+ARMA_fit <-gls(HRT_seas~  
+                     por2 + 
+                     in_water_seas+
+                     rain_mean_seas,
+               correlation = corARMA(p = 0, q = 1),
                data = sta2_int)
 
 
@@ -901,9 +872,68 @@ hist(E1)
 #final model to pass on to piecewiseSEM
 #residuals are heterosjedastic and non-normal...
 
-HRT_mod <-gls(log1p(HRT_int)~  
-                por2 + 
-                in_water_l_int+
-                rainfall_mean_int,
+HRT_mod <-gls(HRT_seas~  
+                   por2 + 
+                   in_water_seas+
+                   rain_mean_seas,
               correlation = corARMA(p = 1, q = 0),
               data = sta2_int)
+
+####SEM####
+
+#models: selected using aic for p and q fro script STA_2_models.R####
+
+TP_outflow_mod <-gls(log1p(tp_out_seas)  ~ 
+                        tp_in_seas+
+                        tp_rr_seas,  
+                        correlation = corARMA(p = 1, q = 0),
+                        data = sta2_int,
+                        method="ML")
+
+TN_RR_mod <-gls(tn_rr_seas~  
+                  tn_in_seas + 
+                  tca_rr_seas+ 
+                  por2 + 
+                  in_water_seas+
+                  temp_mean_seas+
+                  HRT_seas, 
+                correlation = corARMA(p = 1, q = 0),
+                data = sta2_int, 
+                method="ML")
+
+TP_RR_mod <-gls(tp_rr_seas ~  
+                 tp_in_seas + 
+                 tca_rr_seas+ 
+                 tn_rr_seas+ 
+                 por2 + 
+                 in_water_seas+
+                 temp_mean_seas+
+                 HRT_seas, 
+               correlation = corARMA(p = 2, q = 0),
+               data = sta2_int, 
+               method="ML")
+summary(TCA_RR_mod)
+HRT_mod <-gls(HRT_seas~  
+                por2 + 
+                in_water_seas+
+                rain_mean_seas,
+              correlation = corARMA(p = 1, q = 0),
+              data = sta2_int,
+              method="ML")
+
+
+
+TCA_RR_mod <-gls(tca_rr_seas~  
+                    tca_in_seas + 
+                    por2 + 
+                    in_water_seas+
+                    temp_mean_seas+
+                    HRT_seas,
+                    data = sta2_int,
+                    method="ML")
+
+
+
+####Path for MPD as response#### 
+model1<-psem(TN_RR_mod,TCA_RR_mod,HRT_mod,TP_RR_mod,TP_outflow_mod)
+summary(model1, .progressBar = F)
