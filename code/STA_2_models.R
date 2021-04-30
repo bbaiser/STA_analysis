@@ -186,7 +186,7 @@ tseries::kpss.test(residuals(Arima_fit2), null="Trend") #want high pvalue
 #now model with gls because we can use it for piecewise SEM
 ARMA_fit <-gls(log(out_tp_c_int)  ~ 
                     in_tp_c_int+
-                    tp_rr_int,  
+                    log1p(tp_rr_int),  
                   correlation = corARMA(p = 1, q = 0),
                   data = sta2_int, 
                   na.action = na.exclude)
@@ -218,7 +218,7 @@ qqline(E1) # looks ok
 
 TP_out_c <-gls(log(out_tp_c_int)  ~ 
                  in_tp_c_int+
-                 tp_rr_int,  
+                 log1p(tp_rr_int),  
                correlation = corARMA(p = 1, q = 0),
                data = sta2_int)
 
@@ -351,12 +351,12 @@ pairs(x_vars)#pairwise plots for vars
 
 #run auto.arima
 auto.arima(log1p(ts(sta2_int$tp_rr_int, frequency = 12)), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(0,0,1)(1,0,1)[12] errors 
-auto.arima(log1p(sta2_int$tp_rr_int), xreg=x_vars , trace=T, stepwise=FALSE,approx=FALSE) # Best model: Regression with ARIMA(1,0,0)
+auto.arima(log1p(sta2_int$tp_rr_int), xreg=x_vars , trace=T, stepwise=FALSE,approx=FALSE) # Best model: Regression with ARIMA(0,0,2)
 
 
 
 #without season--this seems fine...
-Arima_fit2 <- Arima(log1p(sta2_int$tp_rr_int), xreg=x_vars, order=c(0,0,2))
+Arima_fit2 <- Arima(log1p(sta2_int$tp_rr_int),  xreg=x_vars,order=c(0,0,2))
 summary(Arima_fit2)
 
 AIC(Arima_fit2)
@@ -366,8 +366,8 @@ coeftest(Arima_fit2)
 (1-pnorm(abs(Arima_fit2$coef)/sqrt(diag(Arima_fit2$var.coef))))*2 #hand calculate pvalues
 
 #test stationarity 
-pacf(residuals(Arima_fit2))#lag of 1
-acf(residuals(Arima_fit2))
+pacf(residuals(Arima_fit2))#looks good
+acf(residuals(Arima_fit2))#looks good
 Box.test(residuals(Arima_fit2), lag=10, type="Ljung-Box")
 tseries::adf.test(residuals(Arima_fit)) #want low pvalue
 tseries::kpss.test(residuals(Arima_fit2), null="Trend") #want high pvalue
@@ -396,10 +396,10 @@ for(i in 0:3) {
   }
 }
 
-colnames(cor.results) <- c('i', 'j', 'AIC')
-cor.results %>% arrange(AIC)
+colnames(cor.results) <- c('i', 'j', 'AIC')#gives diff result than auto arima?...
+cor.results %>% arrange(AIC) 
 
-#   i j       AIC
+#   i j       AIC is this over fit?
 #  3 2 -144.7257
 
 #now model with gls because we can use it for piecewise SEM
@@ -411,7 +411,7 @@ ARMA_fit <-gls(log1p(tp_rr_int)  ~
                  por2+
                  temp_mean_int+
                  wd_0_mean_int,
-               correlation = corARMA(p = 3, q = 2,form =~ 1),
+               correlation = corARMA(p = 0, q = 2),
                data = sta2_int, 
                method="ML")
 
@@ -455,7 +455,7 @@ TPC_RR <-gls(log1p(tp_rr_int)  ~
                por2+
                temp_mean_int+
                wd_0_mean_int,
-             correlation = corARMA(p = 3, q = 2),
+             correlation = corARMA(p = 0, q = 2),
              data = sta2_int, 
              method="ML")
 
@@ -573,24 +573,24 @@ pairs(x_vars)#pirwose plots for vairs
 
 #run auto.arima
 auto.arima(ts(sta2_int$tn_rr_int, frequency = 12), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(1,0,0)(1,0,0)[12] errors 
-auto.arima(sta2_int$tn_rr_int, xreg=x_vars , trace=T) # Best model: Regression with ARIMA(2,0,2)
+auto.arima(sta2_int$tn_rr_int, xreg=x_vars , trace=T) # Best model: Regression with ARIMA(2,0,2) But it doesnt do (1,0,0)which is lower?
 
 
 
 
 #without season--this seems fine...
-Arima_fit2 <- Arima(sta2_int$tn_rr_int, xreg=x_vars, order=c(2,0,2))
+Arima_fit2 <- Arima(sta2_int$tn_rr_int, xreg=x_vars, order=c(1,0,0))
 summary(Arima_fit2)
 
-
+AIC(Arima_fit2)
 
 #test coefficients
 coeftest(Arima_fit2)
 (1-pnorm(abs(Arima_fit2$coef)/sqrt(diag(Arima_fit2$var.coef))))*2 #hand calculate pvalues
 
 #test stationarity 
-pacf(residuals(Arima_fit2))#lag of 1
-acf(residuals(Arima_fit2))
+pacf(residuals(Arima_fit2))#good
+acf(residuals(Arima_fit2))#good
 Box.test(residuals(Arima_fit2), lag=10, type="Ljung-Box")
 tseries::adf.test(residuals(Arima_fit)) #want low pvalue
 tseries::kpss.test(residuals(Arima_fit2), null="Trend") #want high pvalue
@@ -740,8 +740,8 @@ tca_RR <-gls(ca_rr_int ~  temp_mean_int , data = sta2_int)
 
 
 #test stationarity 
-pacf(residuals(tca_RR))#lag of 1
-acf(residuals(tca_RR))
+pacf(residuals(tca_RR))#looks fine
+acf(residuals(tca_RR))#looks fine
 Box.test(residuals(tp_RR), lag=10, type="Ljung-Box") #want pvalue >0.05
 tseries::adf.test(residuals(tp_RR)) #want pvalue <0.05
 tseries::kpss.test(residuals(tp_RR)) #want pvalue >0.05
@@ -806,7 +806,7 @@ ARMA_fit <-gls(ca_rr_int~
                           in_water_l_int+
                           temp_mean_int+
                           wd_0_mean_int, 
-                        #correlation = corARMA(p = 0, q = 1),# this does not increase fit so no arma structure
+                        #correlation = corARMA(p = 2, q = 2),# this does not increase fit so no arma structure
                         data = sta2_int,
                         method="ML")
 
@@ -833,9 +833,9 @@ tseries::kpss.test(residuals(ARMA_fit, type="normalized"), null="Trend") #want h
 
 #plot resdiuals
 E1<-residuals(ARMA_fit, type = "normalized")
-plot(x=ARMA_fit,y=E1) #plot residuals - looks ok
+plot(x=ARMA_fit,y=E1) #plot residuals - looks heteroskedastic
 qqnorm(E1)#qqplot
-qqline(E1) # looks ok
+qqline(E1) # looks ok, tails...
 hist(E1)
 
 
@@ -921,7 +921,7 @@ pairs(x_vars)#pirwose plots for vairs
 
 #run auto.arima
 auto.arima(ts(sta2_int$ca_rr_int, frequency = 12), xreg=x_vars , trace=T) # Best model: Regression with ARIMA(1,0,0)(1,0,0)[12] errors 
-auto.arima(sta2_int$wd_0_mean_int, xreg=x_vars , trace=T) # Best model: Regression with ARIMA(0,0,1)
+auto.arima(sta2_int$wd_0_mean_int, xreg=x_vars , trace=T) # Best model: Regression with ARIMA(1,0,0)
 
 
 
