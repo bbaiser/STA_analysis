@@ -175,3 +175,54 @@ plot(model1, node_attrs = list(
   shape = "rectangle", color = "black",
   fillcolor = "orange", x = 3, y=1:12))
 
+
+#models: selected using aic for p and q fro script sta_new_models.R not ca rr or tn rr
+
+
+TP_outflow_mod<-gls(log(out_tp_c_int)  ~ 
+        in_tp_c_int+
+        log1p(tp_rr_int)+
+        in_tn_c_int+
+        in_ca_c_int+
+        log1p(out_water_int),  
+      correlation = corARMA(p = 1, q = 0),
+      data = sta2_int)
+
+
+TP_RR_mod<-gls(log1p(tp_rr_int)  ~ 
+      in_tp_c_int+
+      in_ca_c_int+
+      in_tn_c_int+ 
+      in_water_l_int+
+      por2,
+    correlation = corARMA(p = 3, q = 2),
+    data = sta2_int, 
+    method="ML")
+
+
+wd_0_mod<-gls(wd_0_mean_int~  
+                in_water_l_int,
+              correlation = corARMA(p = 1, q = 0),
+              data = sta2_int)
+
+Out_H20_mod <-gls(log1p(out_water_int)~  
+                wd_0_mean_int,
+              correlation = corARMA(p = 0, q = 2),
+              data = sta2_int)
+
+
+
+####Path model using psem
+model1<-psem(TP_RR_mod,TP_outflow_mod,wd_0_mod,Out_H20_mod)
+summary(model1, .progressBar = F)
+
+#save out coefficents table
+mod1_coefs<-coefs(model1)
+write.csv(mod1_coefs, file = "results/mpd_model.csv", quote = FALSE, row.names = F)
+
+plot(model1)
+
+AIC(model1)
+plot(model1, node_attrs = list(
+  shape = "rectangle", color = "black",
+  fillcolor = "orange", x = 3, y=1:12))
