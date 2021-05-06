@@ -44,7 +44,7 @@ sta2_int<-mod_vars%>%
   mutate(wd_0_mean_int=na.spline(sta2$wd_0_mean, sta2$por2))%>%#no na
   mutate(out_water_int=na.spline(sta2$out_water_l, sta2$por2))#no na
 
-sta2_int$HRT_int[sta2_int$HRT_int<0] <- 0#replace ridiculous neg interpolated value with 0
+#sta2_int$HRT_int[sta2_int$HRT_int<0] <- 0#replace ridiculous neg interpolated value with 0
 
 
 
@@ -176,7 +176,7 @@ plot(model1, node_attrs = list(
   fillcolor = "orange", x = 3, y=1:12))
 
 
-#models: selected using aic for p and q fro script sta_new_models.R not ca rr or tn rr
+#models: selected using aic for p and q fro script sta_new_models.R not ca rr or tn rr####
 
 
 TP_outflow_mod<-gls(log(out_tp_c_int)  ~ 
@@ -219,6 +219,15 @@ summary(model1, .progressBar = F)
 #save out coefficents table
 mod1_coefs<-coefs(model1)
 write.csv(mod1_coefs, file = "results/mpd_model.csv", quote = FALSE, row.names = F)
+
+
+
+
+
+
+
+
+
 
 plot(model1)
 
