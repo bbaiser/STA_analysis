@@ -176,7 +176,7 @@ plot(model1, node_attrs = list(
   fillcolor = "orange", x = 3, y=1:12))
 
 
-#models: selected using aic for p and q fro script sta_new_models.R not ca rr or tn rr####
+#models: USE THESE selected using aic for p and q fro script sta_new_models.R not ca rr or tn rr####
 
 
 TP_outflow_mod<-gls(log(out_tp_c_int)  ~ 
