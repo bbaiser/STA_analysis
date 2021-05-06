@@ -18,10 +18,9 @@ head(NA_dat)
 #subset for sta2
 sta2<-subset(NA_dat,sta %in% c("sta_2"))
 
-
 #select variables used in model (missing VEG as of 4/26/21; check for others)
 mod_vars<-sta2 %>%
-  select(out_tp_c,in_tp_c,tp_rr,in_tn_c,tn_rr,in_ca_c,ca_rr,in_water_l,temp_mean, rainfall_mean,sta,por2, month, year, HRT, HRT_365)
+  select(out_tp_c,in_tp_c,tp_rr,in_tn_c,tn_rr,in_ca_c,ca_rr,in_water_l,temp_mean, rainfall_mean,sta,por2, month, year, HRT, wd_mean, out_water_l, wd_0_mean)
 
 
 #interpolate using splines for each variable. some don;t have nas and dont need it
@@ -37,11 +36,9 @@ sta2_int<-mod_vars%>%
   mutate(temp_mean_int=na.spline(sta2$temp_mean,sta2$por2))%>% #no na
   mutate(rainfall_mean_int=na.spline(sta2$rainfall_mean,sta2$por2))%>%#no na
   mutate(HRT_int=na.spline(sta2$HRT, sta2$por2))%>%#6 NA
-  mutate(HRT365_int=na.spline(sta2$HRT_365, sta2$por2))#6NA
-
-sta2_int$HRT_int[sta2_int$HRT_int<0] <- 0#replace ridiculous neg interpolated value with 0
-
-
+  mutate(wd_mean_int=na.spline(sta2$wd_mean, sta2$por2))%>%#6NA
+  mutate(wd_0_mean_int=na.spline(sta2$wd_0_mean, sta2$por2))%>%#no na
+  mutate(out_water_int=na.spline(sta2$out_water_l, sta2$por2))#no na
 
 
 #Remove season from each variable that has a seasonal component####
@@ -55,8 +52,10 @@ sta_comps<-decompose(tp_ts)#decompose into trend, season and noise
 plot(sta_comps)#plot decomposition components
 
 tp_out_seas <- tp_ts-sta_comps$seasonal #remove seasonal component
-plot.ts(tp_out_seas)
+aa<-tp_out_seas-sta_comps$trend
 
+plot.ts(aa)
+plot.ts(sta_comps$random)
 #total P in(tp_c_in)
 
 #make time series object
