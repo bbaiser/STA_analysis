@@ -70,7 +70,7 @@ sta2_int<-mod_vars%>%
   mutate(wd_0_mean_int=na.spline(sta2$wd_0_mean, sta2$por2))%>% #no na
   mutate(out_water_int=na.spline(sta2$out_water_l, sta2$por2))  #no na
 
-sta2_int$HRT_int[sta2_int$HRT_int<0] <- 0 #replace ridiculous negative interpolated value with 0
+#sta2_int$HRT_int[sta2_int$HRT_int<0] <- 0 #replace ridiculous negative interpolated value with 0
 
 # calculate the # of na's for given variable
 #count(is.na(subset(mod_vars,sta %in% c("sta_2"))$out_water_l))
@@ -107,7 +107,7 @@ sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=in_tp_c_int)) +
 
 sep_sta_2
 
-plot(sta2_int$in_tp_c_int, sta2_int$out)
+
 #tp_rr
 sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=tp_rr_int)) +
   geom_line(aes(color=sta))+xlab("Period of Record (Month)") + 
@@ -171,6 +171,7 @@ cor.results %>% arrange(AIC)
 
 #without season--this seems fine...
 Arima_fit2 <- Arima(log(sta2_int$out_tp_c_int), xreg=x_vars, order=c(1,0,0))
+summary(Arima_fit2)
 
 #look at model results and fit
 coeftest(Arima_fit2)# get pvalues
@@ -269,8 +270,8 @@ tp_RR <-gls(log1p(tp_rr_int) ~
               in_ca_c_int+
               in_tn_c_int+
               por2 + 
-              in_water_l_int,
-             # wd_0_mean_int, 
+              in_water_l_int+
+             wd_0_mean_int, 
             data = sta2_int)
 
 
