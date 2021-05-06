@@ -1,7 +1,7 @@
 ####STA 2 PIECEWISE MODELS
 
 #Packages####
-#install.packages("itsmr")
+
 library(itsmr)
 library(dplyr)
 library(tidyr)
@@ -17,7 +17,7 @@ library(forecast)
 library(piecewiseSEM)
 
 #Import data####
-NA_dat<-read.csv("data/4_sta_4_16.csv", row=1) #complete data frame compiled by Jing HU on 3/2/2021
+NA_dat<-read.csv("data/4_sta_4_16.csv", row=1) #data produced by the clean_data.R file
 
 head(NA_dat)
 
@@ -26,13 +26,13 @@ head(NA_dat)
 sta2<-subset(NA_dat,sta %in% c("sta_2"))
 
 
-#select variables used in model (missing HRT, VEG as of 4/15/21; check for others)
+#select variables used in model 
 mod_vars<-sta2 %>%
   select(out_tp_c,in_tp_c,tp_rr,in_tn_c,tn_rr,in_ca_c,ca_rr,in_water_l,temp_mean, rainfall_mean,sta,por2, month, year, HRT, wd_mean, out_water_l, wd_0_mean)
 
 
 
-#remove outliers using box plot here?
+#different code to remove outliers; needs to be adapted to our data
 
 #out <- boxplot.stats(dat$hwy)$out
 #out_ind <- which(dat$hwy %in% c(out))
@@ -53,11 +53,7 @@ mod_vars<-sta2 %>%
 #filter(out_tp_c < 0.2)
 
 
-
-
-
-
-#interpolate using splines for each variable. some don;t have nas and dont need it
+#interpolate using splines for each variable. some don't have nas and don't need it
 sta2_int<-mod_vars%>%
   mutate(out_tp_c_int=na.spline(sta2$out_tp_c,sta2$por2))%>%   #interpolate over 6 nas
   mutate(in_tp_c_int=na.spline(sta2$in_tp_c,sta2$por2))%>%     #interpolate over 1 na
@@ -69,17 +65,17 @@ sta2_int<-mod_vars%>%
   mutate(in_water_l_int=na.spline(sta2$in_water_l,sta2$por2))%>%#no na
   mutate(temp_mean_int=na.spline(sta2$temp_mean,sta2$por2))%>% #no na
   mutate(rainfall_mean_int=na.spline(sta2$rainfall_mean,sta2$por2))%>%#no na
-  mutate(HRT_int=na.spline(sta2$HRT, sta2$por2))%>%#6 NA
-  mutate(wd_mean_int=na.spline(sta2$wd_mean, sta2$por2))%>%#6NA
-  mutate(wd_0_mean_int=na.spline(sta2$wd_0_mean, sta2$por2))%>%#no na
-  mutate(out_water_int=na.spline(sta2$out_water_l, sta2$por2))#no na
+  mutate(HRT_int=na.spline(sta2$HRT, sta2$por2))%>%             #6 NA
+  mutate(wd_mean_int=na.spline(sta2$wd_mean, sta2$por2))%>%     #6NA
+  mutate(wd_0_mean_int=na.spline(sta2$wd_0_mean, sta2$por2))%>% #no na
+  mutate(out_water_int=na.spline(sta2$out_water_l, sta2$por2))  #no na
 
-sta2_int$HRT_int[sta2_int$HRT_int<0] <- 0#replace ridiculous neg interpolated value with 0
+sta2_int$HRT_int[sta2_int$HRT_int<0] <- 0 #replace ridiculous negative interpolated value with 0
+
 # calculate the # of na's for given variable
-#count(is.na(subset(mod_vars,sta %in% c("sta_2"))$out_water_l))#of nas in out_tp_c
+#count(is.na(subset(mod_vars,sta %in% c("sta_2"))$out_water_l))
 
 #### Model "piece" predicting Total p outflow conc. (out_tp_c_int )####
-#tp OUTPUT= tp INPUT +TP retention rate
 
 #Histograms of variables in the model. looking for outliers
 
@@ -124,10 +120,11 @@ sep_sta_2
 #GLS model without temporal correlation structure (note: with collinear predictors)
 
 tp_out <-gls(log(out_tp_c_int) ~  in_tp_c_int+tp_rr_int+out_water_int+in_ca_c_int+in_tn_c_int, data = sta2_int)
-summary(tp_out)
-rsquared(tp_out)
-plot(tp_out)#look at residual plot
-car::vif(tp_out)
+
+summary(tp_out)# summary for p-values
+rsquared(tp_out)#r squared value
+plot(tp_out) #look at residual plot to assess model fit
+car::vif(tp_out) #variance inflation factor to look for collinearity
 
 #test stationarity 
 pacf(residuals(tp_out))#lag of 1
@@ -170,15 +167,14 @@ cor.results %>% arrange(AIC)
 #i j      AIC
 #1 0 104.4744
 #0 2 105.9689
-#run best fit model with arima (NOTE THAT EACH PREDICTOR BY ITSELF has the same corrolation structure (1,0,0))
 
 
 #without season--this seems fine...
 Arima_fit2 <- Arima(log(sta2_int$out_tp_c_int), xreg=x_vars, order=c(1,0,0))
-summary(Arima_fit2)
 
-#test coefficients
-coeftest(Arima_fit2)
+#look at model results and fit
+coeftest(Arima_fit2)# get pvalues
+
 
 #test stationarity 
 pacf(residuals(Arima_fit2))#looks good
@@ -196,17 +192,13 @@ ARMA_fit <-gls(log(out_tp_c_int)  ~
                  in_ca_c_int+
                  out_water_int,  
                correlation = corARMA(p = 1, q = 0),
-               data = sta2_int, 
-               na.action = na.exclude)
+               data = sta2_int)
 
-
-summary(ARMA_fit)
+#assess model
+summary(ARMA_fit)#get pvalues
 rsquared(ARMA_fit)
 plot(ARMA_fit)#look at residual plot
-car::vif(ARMA_fit)
-
-#test coefficients
-coeftest(ARMA_fit)
+car::vif(ARMA_fit)#look for collinearity
 
 #test stationarity 
 pacf(residuals(ARMA_fit, type="normalized"))#looks good
@@ -284,7 +276,7 @@ tp_RR <-gls(log1p(tp_rr_int) ~
 
 
 
-summary(tp_RR)
+summary(tp_RR)#get pvalues
 car::vif(tp_RR)# check variance inflation, looks ok
 rsquared(tp_RR)
 plot(tp_RR)#look at residual plot, looks ok
@@ -297,12 +289,14 @@ tp_RR <-gls(log1p(tp_rr_int) ~   in_tn_c_int , data = sta2_int)
 tp_RR <-gls(log1p(tp_rr_int) ~  in_water_l_int , data = sta2_int)
 tp_RR <-gls(log1p(tp_rr_int) ~  por2 , data = sta2_int)
 tp_RR <-gls(log1p(tp_rr_int) ~ wd_0_mean_int, data = sta2_int)
+
+#look at univarite results
 summary(tp_RR)
 rsquared(tp_RR)
 plot(tp_RR)
 
 #test stationarity 
-pacf(residuals(tp_RR))
+pacf(residuals(tp_RR))#has lags
 acf(residuals(tp_RR))
 Box.test(residuals(tp_RR), lag=10, type="Ljung-Box") #want pvalue >0.05
 tseries::adf.test(residuals(tp_RR)) #want pvalue <0.05
@@ -325,7 +319,6 @@ auto.arima(log1p(sta2_int$tp_rr_int), xreg=x_vars , trace=T, stepwise=FALSE,appr
 Arima_fit2 <- Arima(log1p(sta2_int$tp_rr_int),  xreg=x_vars,order=c(0,0,5))
 summary(Arima_fit2)
 
-AIC(Arima_fit2)
 
 #test coefficients
 coeftest(Arima_fit2)
@@ -339,9 +332,7 @@ tseries::adf.test(residuals(Arima_fit)) #want low pvalue
 tseries::kpss.test(residuals(Arima_fit2), null="Trend") #want high pvalue
 
 
-
-
-
+###test p, q with corARMA manually with a loop
 cor.results <- NULL
 for(i in 0:5) {
   for(j in 0:5) {
@@ -385,9 +376,6 @@ car::vif(ARMA_fit)
 summary(ARMA_fit)
 rsquared(ARMA_fit)
 
-#test coefficients
-coeftest(ARMA_fit)
-round((1-pnorm(abs(ARMA_fit$coef)/sqrt(diag(ARMA_fit$varBeta))))*2, digits=8)#hand calculate pvalues
 
 
 #test stationarity 
@@ -422,9 +410,6 @@ TPC_RR <-gls(log1p(tp_rr_int)  ~
 
 
 
-
-
-
 #### Model "piece" predicting Water depth####
 
 #plot time series
@@ -454,9 +439,7 @@ wd_0 <-gls(wd_0_mean_int~
            data = sta2_int)
 
 
-#car::vif(wd_0)# check variance inflation, looks ok
-
-
+#look at model results
 summary(wd_0)
 rsquared(wd_0)
 AIC(wd_0)
@@ -475,8 +458,7 @@ tseries::kpss.test(residuals(wd_0)) #want pvalue >0.05
 #x_vars<-cbind( sta2_int$in_water_l_int, sta2_int$por2, sta2_int$rainfall_mean_int)#create data frame with predictor variables
 #colnames(x_vars)<-c( "IN_H2o", "por","precip" )#give them names
 
-cor(x_vars)#correlation values for vars
-pairs(x_vars)#pirwose plots for vairs
+rs
 
 #run auto.arima
 auto.arima(ts(sta2_int$wd_0_mean_int, frequency = 12), xreg=sta2_int$in_water_l , trace=T) # Best model: Regression with ARIMA(5,1,1)(2,0,1)[12] errors 
@@ -529,13 +511,10 @@ ARMA_fit <-gls(wd_0_mean_int~
 
 
 #check out model
-car::vif(ARMA_fit)
 summary(ARMA_fit)
 rsquared(ARMA_fit)
 
-#test coefficients
-coeftest(ARMA_fit)
-round((1-pnorm(abs(ARMA_fit$coef)/sqrt(diag(ARMA_fit$varBeta))))*2, digits=8)#hand calculate pvalues
+
 
 
 #test stationarity 
@@ -551,13 +530,13 @@ tseries::kpss.test(residuals(ARMA_fit, type="normalized"), null="Trend") #want h
 E1<-residuals(ARMA_fit, type = "normalized")
 plot(x=ARMA_fit,y=E1) #plot residuals - looks ok
 qqnorm(E1)#qqplot
-qqline(E1) # looks ok
+qqline(E1) # looks not great...
 hist(E1)
 
 
 
 #final model to pass on to piecewiseSEM
-#residuals are heterosjedastic and non-normal... this model needs help...
+#residuals are heteroskedastic and non-normal... this model needs help...
 
 wd_0 <-gls(wd_0_mean_int~  
              in_water_l_int,
@@ -570,12 +549,10 @@ wd_0 <-gls(wd_0_mean_int~
 
 #plot time series
 
-
-
-#hydraulic inflow
-sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=in_water_l_int)) +
+#hydraulic outflow
+sep_sta_2<-ggplot(sta2_int, aes(x=por2, y=out_water_int)) +
   geom_line(aes(color=sta))+xlab("Period of Record (Month)") + 
-  ylab("Inflow Hydraulic loading rate")
+  ylab("Outflow Hydraulic loading rate")
 
 sep_sta_2
 
@@ -616,9 +593,6 @@ tseries::kpss.test(residuals(water_out)) #want pvalue >0.05
 #x_vars<-cbind( sta2_int$in_water_l_int, sta2_int$por2, sta2_int$rainfall_mean_int)#create data frame with predictor variables
 #colnames(x_vars)<-c( "IN_H2o", "por","precip" )#give them names
 
-cor(x_vars)#correlation values for vars
-pairs(x_vars)#pirwose plots for vairs
-
 #run auto.arima
 auto.arima(ts(sta2_int$out_water_int, frequency = 12), xreg=sta2_int$wd_0_mean_int , trace=T) # Best model: Regression with ARIMA(1,0,0)(1,0,0)[12] errors 
 auto.arima(sta2_int$out_water_int, xreg=sta2_int$wd_0_mean_int , trace=T) # Best model: Regression with ARIMA(1,0,0)
@@ -626,7 +600,7 @@ auto.arima(sta2_int$out_water_int, xreg=sta2_int$wd_0_mean_int , trace=T) # Best
 
 
 #without season. seems to need season...
-Arima_fit2 <- Arima(sta2_int$out_water_int, xreg=sta2_int$wd_0_mean_intin_water_l, order=c(0,1,0))
+Arima_fit2 <- Arima(sta2_int$out_water_int, xreg=sta2_int$wd_0_mean_int, order=c(0,1,0))
 summary(Arima_fit2)
 
 
@@ -644,7 +618,7 @@ tseries::kpss.test(residuals(Arima_fit2), null="Trend") #want high pvalue
 
 
 
-
+#test by loop and AIC
 cor.results <- NULL
 for(i in 0:3) {
   for(j in 0:3) {
@@ -680,14 +654,11 @@ car::vif(ARMA_fit)
 summary(ARMA_fit)
 rsquared(ARMA_fit)
 
-#test coefficients
-coeftest(ARMA_fit)
-round((1-pnorm(abs(ARMA_fit$coef)/sqrt(diag(ARMA_fit$varBeta))))*2, digits=8)#hand calculate pvalues
 
 
 #test stationarity 
-pacf(residuals(ARMA_fit, type="normalized"))#12 month...
-acf(residuals(ARMA_fit, type="normalized"))#12 month...
+pacf(residuals(ARMA_fit, type="normalized"))#looks good
+acf(residuals(ARMA_fit, type="normalized"))##looks good
 Box.test(residuals(ARMA_fit, type="normalized"), lag=10, type="Ljung-Box")
 tseries::adf.test(residuals(ARMA_fit, type="normalized")) #want low pvalue
 tseries::kpss.test(residuals(ARMA_fit, type="normalized"), null="Trend") #want high pvalue
@@ -696,7 +667,7 @@ tseries::kpss.test(residuals(ARMA_fit, type="normalized"), null="Trend") #want h
 
 #plot resdiuals
 E1<-residuals(ARMA_fit, type = "normalized")
-plot(x=ARMA_fit,y=E1) #plot residuals - looks ok
+plot(x=ARMA_fit,y=E1) #plot residuals - looks not great...
 qqnorm(E1)#qqplot
 qqline(E1) # looks ok
 hist(E1)
