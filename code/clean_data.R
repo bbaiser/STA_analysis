@@ -7,7 +7,7 @@ library(ggplot2)
 
 #import data and clean data####
 
-master_dat<-read.csv("data/R_sta_month_0416.csv") #complete data frame compiled by Jing HU on 3/2/2021
+master_dat<-read.csv("data/R_sta_month_0416.csv") #complete data frame compiled by Jing HU on 4/16/2021
 
 head(master_dat)
 
